@@ -2,6 +2,7 @@ package it.unipi.githeritage.model.mongodb;
 
 import org.springframework.data.annotation.Id;
 
+import java.nio.file.Files;
 import java.time.Instant;
 import java.util.List;
 
@@ -16,6 +17,15 @@ public class Project {
     private List<String> administrators;
     private List<Comment> comments;
     private Instant creationDate;
+    private List<Files> files;
+
+    public List<Files> getFiles() {
+        return files;
+    }
+
+    public void setFiles(List<Files> files) {
+        this.files = files;
+    }
 
     public String getId() {
         return id;
