@@ -1,50 +1,74 @@
 package it.unipi.githeritage.model.mongodb;
 
 import org.springframework.data.annotation.Id;
-import it.unipi.githeritage.utils.Role;
+
+import java.util.List;
 
 public class User {
+
     @Id
-    private final String id;
+    private String id;
 
-    private final String username;
-    private final String password;
-    private Role role;
-
-    public User(Role role, String username, String password, String id) {
-        this.role = role;
-        this.username = username;
-        this.password = password;
-        this.id = id;
-    }
+    private String username;
+    private String password;
+    private String name;
+    private String surname;
+    private List<String> tokens;
+    private List<String> projects;
 
     public String getId() {
         return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
     }
 
     public String getUsername() {
         return username;
     }
 
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
     public String getPassword() {
         return password;
     }
 
-    public Role getRole() {
-        return role;
+    public void setPassword(String password) {
+        this.password = password;
     }
 
-    public void setRole(Role role) {
-        this.role = role;
+    public String getName() {
+        return name;
     }
 
-    @Override
-    public String toString() {
-        return "User{" +
-                "id='" + id + '\'' +
-                ", username='" + username + '\'' +
-                ", password='" + password + '\'' +
-                ", role=" + role +
-                '}';
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getSurname() {
+        return surname;
+    }
+
+    public void setSurname(String surname) {
+        this.surname = surname;
+    }
+
+    public List<String> getTokens() {
+        return tokens;
+    }
+
+    public void setTokens(List<String> tokens) {
+        this.tokens = tokens;
+    }
+
+    public List<String> getProjects() {
+        return projects;
+    }
+
+    public void setProjects(List<String> projects) {
+        this.projects = projects;
     }
 }
