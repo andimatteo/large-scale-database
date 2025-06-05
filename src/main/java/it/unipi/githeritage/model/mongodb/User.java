@@ -16,6 +16,21 @@ public class User {
     private List<String> tokens;
     private List<String> projects;
 
+    public User(String username, String password) {
+        this.username = username;
+        this.password = password;
+    }
+
+    public User(String id, String username, String password, String name, String surname, List<String> tokens, List<String> projects) {
+        this.id = id;
+        this.username = username;
+        this.password = password;
+        this.name = name;
+        this.surname = surname;
+        this.tokens = tokens;
+        this.projects = projects;
+    }
+
     public String getId() {
         return id;
     }
