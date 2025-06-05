@@ -22,17 +22,6 @@ public class GitHeritageApplication {
 
     @EventListener(ApplicationReadyEvent.class)
     public void init(){
-        // clear database
-        userService.dropUserDatabase();
-
-        // add admin user
-        User admin = new User(Role.ADMIN,"admin","admin","1");
-        userService.addUser(admin);
-
-
-        User u = new User(Role.USER,"test","test",null);
-        userService.addUser(u);
-
         // check presence of admin user
         userService.getAll().forEach(System.out::println);
     }
