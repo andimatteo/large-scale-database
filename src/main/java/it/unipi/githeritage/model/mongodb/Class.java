@@ -8,6 +8,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 
 import java.util.List;
+import java.util.Set;
 
 
 @Data
@@ -18,6 +19,6 @@ public class Class {
     private String id;
 
     private String name;
-    private List<String> fields;
-    private List<Method> methods;
+    private Set<String> fields; // ??
+    private Set<Method> methods;
 }

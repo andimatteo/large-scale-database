@@ -10,6 +10,7 @@ import lombok.Data;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 
 
 @Data
@@ -27,6 +28,6 @@ public class Project {
     private List<String> administrators;
     private List<Comment> comments;
     private Instant creationDate;
-    private List<File> files;
+    private Set<File> files;
 }
 

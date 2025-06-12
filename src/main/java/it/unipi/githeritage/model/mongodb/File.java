@@ -9,6 +9,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 
 import java.util.List;
+import java.util.Set;
 
 
 @Data
@@ -23,5 +24,5 @@ public class File {
     private String type;
     private Integer size;
     private String content;
-    private List<String> classes;
+    private Set<String> classes;
 }
