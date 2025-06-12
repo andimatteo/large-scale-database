@@ -19,5 +19,12 @@ public class UserController {
         return userService.getAll();
     }
 
+    // create an endpoint to add a user
+    @PostMapping("/add")
+    public void addUser(@RequestBody it.unipi.githeritage.model.mongodb.User user) {
+        userService.addUser(user);
+    }
+    
+
 
 }

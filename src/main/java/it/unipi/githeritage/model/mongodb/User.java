@@ -1,89 +1,48 @@
 package it.unipi.githeritage.model.mongodb;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import it.unipi.githeritage.DTO.UserDTO;
+import lombok.Data;
 
 import java.util.List;
 
+@Data
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@Document(collection = "Users")
 public class User {
 
     @Id
-    private String id;
-
+    @JsonProperty("_id")
     private String username;
-    private String password;
+    private String passwordHash;
+    private String email;
     private String name;
     private String surname;
-    private List<String> tokens;
+    private String nationality;
+    private Integer followerNumber;
+    private Integer followingNumber;
+    private List<String> comments;
     private List<String> projects;
+    private Boolean isAdmin;
 
-    public User(String username, String password) {
-        this.username = username;
-        this.password = password;
-    }
-
-    public User(String id, String username, String password, String name, String surname, List<String> tokens, List<String> projects) {
-        this.id = id;
-        this.username = username;
-        this.password = password;
-        this.name = name;
-        this.surname = surname;
-        this.tokens = tokens;
-        this.projects = projects;
-    }
-
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getSurname() {
-        return surname;
-    }
-
-    public void setSurname(String surname) {
-        this.surname = surname;
-    }
-
-    public List<String> getTokens() {
-        return tokens;
-    }
-
-    public void setTokens(List<String> tokens) {
-        this.tokens = tokens;
-    }
-
-    public List<String> getProjects() {
-        return projects;
-    }
-
-    public void setProjects(List<String> projects) {
-        this.projects = projects;
+    public static User fromDTO(UserDTO userDTO) {
+        User user = new User();
+        user.setUsername(userDTO.getUsername());
+        user.setPasswordHash(userDTO.getPasswordHash());
+        user.setEmail(userDTO.getEmail());
+        user.setName(userDTO.getName());
+        user.setSurname(userDTO.getSurname());
+        user.setNationality(userDTO.getNationality());
+        user.setFollowerNumber(userDTO.getFollowerNumber());
+        user.setFollowingNumber(userDTO.getFollowingNumber());
+        user.setComments(userDTO.getComments());
+        user.setProjects(userDTO.getProjects());
+        user.setIsAdmin(userDTO.getIsAdmin());
+        return user;
     }
 }
