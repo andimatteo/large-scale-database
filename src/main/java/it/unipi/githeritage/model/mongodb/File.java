@@ -5,6 +5,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.neo4j.core.schema.GeneratedValue;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import lombok.Data;
 
@@ -18,6 +19,7 @@ import java.util.Set;
 public class File {
 
     @Id
+    @JsonProperty("_id")
     private String id;
 
     private String path;

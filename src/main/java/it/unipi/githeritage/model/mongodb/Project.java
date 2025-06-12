@@ -4,6 +4,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import it.unipi.githeritage.model.mongodb.File;
 import lombok.Data;
@@ -19,6 +20,7 @@ import java.util.Set;
 public class Project {
 
     @Id
+    @JsonProperty("_id")
     private String id;
 
     private String name;
