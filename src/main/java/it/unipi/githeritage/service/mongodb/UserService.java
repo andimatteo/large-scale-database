@@ -1,6 +1,7 @@
-package it.unipi.githeritage.service;
+package it.unipi.githeritage.service.mongodb;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -11,6 +12,7 @@ import com.mongodb.client.MongoClient;
 
 import it.unipi.githeritage.DAO.UserMongoDAO;
 import it.unipi.githeritage.DTO.UserDTO;
+import it.unipi.githeritage.model.mongodb.User;
 import lombok.AllArgsConstructor;
 
 @Service
@@ -59,4 +61,10 @@ public class UserService {
             throw new RuntimeException("User not found: " + username, e);
         }
     }
+
+    public UserDTO editUser(UserDTO userDTO) {
+        return UserDTO.fromUser(userMongoDAO.editUser(userDTO));
+    }
+
+
 }

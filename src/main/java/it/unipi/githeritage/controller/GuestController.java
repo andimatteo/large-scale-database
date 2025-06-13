@@ -3,6 +3,7 @@ package it.unipi.githeritage.controller;
 import org.apache.catalina.filters.AddDefaultCharsetFilter.ResponseWrapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -11,7 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import it.unipi.githeritage.DTO.ResponseDTO;
 import it.unipi.githeritage.DTO.UserDTO;
-import it.unipi.githeritage.service.UserService;
+import it.unipi.githeritage.service.mongodb.UserService;
 import lombok.AllArgsConstructor;
 
 @RestController

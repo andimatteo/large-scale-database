@@ -6,14 +6,14 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
-import it.unipi.githeritage.service.mongodb.MongoUserService;
+import it.unipi.githeritage.service.mongodb.UserService;
 import it.unipi.githeritage.utils.Role;
 
 @SpringBootApplication
 public class GitHeritageApplication {
 
     @Autowired
-    private MongoUserService userService;
+    private UserService userService;
 
     public static void main(String[] args) {
         SpringApplication.run(GitHeritageApplication.class, args);
@@ -23,7 +23,7 @@ public class GitHeritageApplication {
     @EventListener(ApplicationReadyEvent.class)
     public void init(){
         // check presence of admin user
-        userService.getAll().forEach(System.out::println);
+        //userService.getAll().forEach(System.out::println);
     }
 
 }

@@ -4,8 +4,8 @@ import org.springframework.security.core.userdetails.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import it.unipi.githeritage.service.UserService;
 import it.unipi.githeritage.DTO.UserDTO;
+import it.unipi.githeritage.service.mongodb.UserService;
 import lombok.AllArgsConstructor;
 
 // Simulate fetching from DB

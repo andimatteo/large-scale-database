@@ -17,7 +17,6 @@ public class CustomUserDetails implements UserDetails {
     private final String username;
     private final String password;
     private final Boolean isAdmin;
-    private final String authorId;
     private final Collection<? extends GrantedAuthority> authorities;
 
     public CustomUserDetails(String id, String username, String password, Boolean isAdmin, String authorId,
@@ -26,7 +25,6 @@ public class CustomUserDetails implements UserDetails {
         this.username = username;
         this.password = password;
         this.isAdmin = isAdmin;
-        this.authorId = authorId;
         this.authorities = authorities;
     }
 
@@ -35,7 +33,6 @@ public class CustomUserDetails implements UserDetails {
         this.username = userDTO.getUsername();
         this.password = userDTO.getPasswordHash();
         this.isAdmin = userDTO.getIsAdmin();
-        this.authorId = userDTO.getAuthorId();
         // Map isAdmin boolean to role string
         String role = userDTO.getIsAdmin() ? "ROLE_ADMIN" : "ROLE_USER";
         this.authorities = List.of(new SimpleGrantedAuthority(role));

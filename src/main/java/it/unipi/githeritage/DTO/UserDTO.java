@@ -29,7 +29,6 @@ public class UserDTO extends BaseDTO{
     private List<String> comments;
     private List<String> projects;
     private Boolean isAdmin;
-    private String authorId; // Add this field for security integration
     //@JsonFormat(pattern = "yyyy-MM-dd")
     //private LocalDate registrationDate;
 
