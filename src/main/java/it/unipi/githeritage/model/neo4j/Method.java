@@ -1,4 +1,4 @@
-package it.unipi.githeritage.model.node4j;
+package it.unipi.githeritage.model.neo4j;
 
 import org.springframework.data.neo4j.core.schema.Id;
 import org.springframework.data.neo4j.core.schema.Node;

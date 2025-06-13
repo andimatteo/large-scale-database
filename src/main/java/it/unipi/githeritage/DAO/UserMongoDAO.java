@@ -43,5 +43,15 @@ public class UserMongoDAO {
     public void deleteUser(String userId) {
         repo.deleteById(userId);
     }
+
+    public UserDTO getUserByUsername(String username) {
+        // TODO: Implement the logic to retrieve a user by username from MongoDB
+        // Example placeholder:
+        // search by id username
+        User found = repo.findById(username)
+            .orElseThrow(() -> new RuntimeException("User not found: " + username));
+
+        return UserDTO.fromUser(found);
+    }
     
 }

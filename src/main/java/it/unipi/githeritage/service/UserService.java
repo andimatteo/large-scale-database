@@ -47,4 +47,16 @@ public class UserService {
             session.close();
         }
     }
+
+    public UserDTO getUserByUsername(String username) {
+        try {
+
+            System.out.println("Retrieving user by username: " + username);
+            UserDTO found = userMongoDAO.getUserByUsername(username);
+            System.out.println("User found: " + found);
+            return found;
+        } catch (Exception e) {
+            throw new RuntimeException("User not found: " + username, e);
+        }
+    }
 }
