@@ -1,8 +1,7 @@
-package it.unipi.githeritage.service.mongodb;
+package it.unipi.githeritage.Service;
 
-import java.time.LocalDate;
-import java.util.List;
-
+import it.unipi.githeritage.Repository.MongoDB.MongoUserRepository;
+import it.unipi.githeritage.Repository.Neo4j.NeoUserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -10,10 +9,11 @@ import org.springframework.stereotype.Service;
 import com.mongodb.client.ClientSession;
 import com.mongodb.client.MongoClient;
 
-import it.unipi.githeritage.DAO.UserMongoDAO;
+import it.unipi.githeritage.DAO.MongoDB.UserMongoDAO;
 import it.unipi.githeritage.DTO.UserDTO;
-import it.unipi.githeritage.model.mongodb.User;
 import lombok.AllArgsConstructor;
+
+import java.util.List;
 
 @Service
 @AllArgsConstructor
@@ -23,6 +23,12 @@ public class UserService {
 
     @Autowired
     private UserMongoDAO userMongoDAO;
+
+    @Autowired
+    private MongoUserRepository mongoUserRepository;
+
+    @Autowired
+    private NeoUserRepository neoUserRepository;
 
     public UserDTO addUser(UserDTO userDTO) {
         ClientSession session = mongoClient.startSession();
@@ -66,5 +72,16 @@ public class UserService {
         return UserDTO.fromUser(userMongoDAO.editUser(userDTO));
     }
 
+    public UserDTO getUser(String username) {
+        return mongoUserRepository.findByUsername(username);
+    }
+
+    public List<String> getFollowersUsernames(String username) {
+        return neoUserRepository.findFollowersUsernamesByUsername(username);
+    }
+
+    public List<String> getFollowsUsernames(String username) {
+        return neoUserRepository.findFollowsUsernamesByUsername(username);
+    }
 
 }

@@ -1,11 +1,11 @@
-package it.unipi.githeritage.config.Security;
+package it.unipi.githeritage.Config.Security;
 
 import org.springframework.security.core.userdetails.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import it.unipi.githeritage.DTO.UserDTO;
-import it.unipi.githeritage.service.mongodb.UserService;
+import it.unipi.githeritage.Service.UserService;
 import lombok.AllArgsConstructor;
 
 // Simulate fetching from DB

@@ -1,20 +1,22 @@
-package it.unipi.githeritage.DAO;
+package it.unipi.githeritage.DAO.MongoDB;
 
 import com.mongodb.client.MongoClient;
+import org.bson.conversions.Bson;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.security.crypto.bcrypt.BCrypt;
-import org.springframework.stereotype.Repository;
 
 import it.unipi.githeritage.DTO.UserDTO;
-import it.unipi.githeritage.model.mongodb.User;
+import it.unipi.githeritage.Model.MongoDB.User;
 import org.bson.Document;
 import org.springframework.stereotype.Component;
 
-import it.unipi.githeritage.repository.mongodb.MongoUserRepository;
+import it.unipi.githeritage.Repository.MongoDB.MongoUserRepository;
+
+import java.util.*;
 
 @Component
 public class UserMongoDAO {
@@ -27,6 +29,9 @@ public class UserMongoDAO {
 
     @Autowired
     private MongoTemplate mongoTemplate;
+
+    @Autowired
+    private MongoUserRepository mongoUserRepository;
 
     public User addUser(User user) {
         String hashedPassword = BCrypt.hashpw(user.getPasswordHash(), BCrypt.gensalt());
@@ -111,6 +116,13 @@ public class UserMongoDAO {
             .orElseThrow(() -> new RuntimeException("User not found: " + username));
 
         return UserDTO.fromUser(found);
+    }
+
+    public List<Document> aggregateUsers(List<Bson> pipeline) {
+        // se ti serve l’AggregateIterable di MongoDriver, prendi la collection grezza:
+        return mongoTemplate.getCollection("user")
+                .aggregate(pipeline)
+                .into(new ArrayList<>());
     }
     
 }
