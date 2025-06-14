@@ -11,6 +11,7 @@ import com.mongodb.client.MongoClient;
 
 import it.unipi.githeritage.DAO.MongoDB.UserMongoDAO;
 import it.unipi.githeritage.DTO.UserDTO;
+import it.unipi.githeritage.Model.MongoDB.User;
 import lombok.AllArgsConstructor;
 
 import java.util.List;
@@ -40,14 +41,14 @@ public class UserService {
             userDTO.setIsAdmin(false); // Default to non-admin
             //userDTO.setRegistrationDate(LocalDate.now()); // Set registration date to current date
 
-            userMongoDAO.addUser(userDTO);
+            UserDTO addedUser = UserDTO.fromUser(userMongoDAO.addUser(userDTO));
             // Save the user in Neo4j
 
             //userNeo4jDAO.addUser(userDTO);
             neo4j = true;
             session.commitTransaction();
 
-            return userDTO;
+            return addedUser;
         } catch (Exception e) {
             session.abortTransaction();
             return null; // Return null or handle the error appropriately

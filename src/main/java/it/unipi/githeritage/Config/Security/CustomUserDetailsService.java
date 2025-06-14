@@ -27,6 +27,4 @@ public class CustomUserDetailsService implements UserDetailsService {
 
         return new CustomUserDetails(user);
     }
-
-    // Dummy implementation – replace with real DB logic
 }

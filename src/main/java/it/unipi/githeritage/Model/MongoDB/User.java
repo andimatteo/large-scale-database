@@ -19,7 +19,7 @@ public class User {
     @Id
     @JsonProperty("_id")
     private String username;
-    private String passwordHash;
+    private String password;
     private String email;
     private String name;
     private String surname;
@@ -33,7 +33,7 @@ public class User {
     public static User fromDTO(UserDTO userDTO) {
         User user = new User();
         user.setUsername(userDTO.getUsername());
-        user.setPasswordHash(userDTO.getPasswordHash());
+        user.setPassword(userDTO.getPassword());
         user.setEmail(userDTO.getEmail());
         user.setName(userDTO.getName());
         user.setSurname(userDTO.getSurname());

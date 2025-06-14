@@ -28,6 +28,7 @@ public class UserController {
             // Get the authenticated user from security context
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
+            //System.out.println("Authenticated user: " + authenticatedUser);
             String authenticatedUsername = authenticatedUser.getUsername();
             
             userDTO.setUsername(authenticatedUsername);

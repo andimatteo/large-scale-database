@@ -19,8 +19,7 @@ public class CustomUserDetails implements UserDetails {
     private final Boolean isAdmin;
     private final Collection<? extends GrantedAuthority> authorities;
 
-    public CustomUserDetails(String id, String username, String password, Boolean isAdmin, String authorId,
-            Collection<? extends GrantedAuthority> authorities) {
+    public CustomUserDetails(String id, String username, String password, Boolean isAdmin, Collection<? extends GrantedAuthority> authorities) {
         this.id = id;
         this.username = username;
         this.password = password;
@@ -31,7 +30,7 @@ public class CustomUserDetails implements UserDetails {
     public CustomUserDetails(UserDTO userDTO) {
         this.id = userDTO.getUsername();
         this.username = userDTO.getUsername();
-        this.password = userDTO.getPasswordHash();
+        this.password = userDTO.getPassword();
         this.isAdmin = userDTO.getIsAdmin();
         // Map isAdmin boolean to role string
         String role = userDTO.getIsAdmin() ? "ROLE_ADMIN" : "ROLE_USER";

@@ -16,7 +16,7 @@ import lombok.NoArgsConstructor;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class UserDTO extends BaseDTO{
     private String username;
-    private String passwordHash;
+    private String password;
     private String email;
     private String name;
     private String surname;
@@ -33,7 +33,7 @@ public class UserDTO extends BaseDTO{
     public static UserDTO fromUser(User user) {
         UserDTO userDTO = new UserDTO();
         userDTO.setUsername(user.getUsername());
-        userDTO.setPasswordHash(user.getPasswordHash());
+        userDTO.setPassword(user.getPassword());
         userDTO.setEmail(user.getEmail());
         userDTO.setName(user.getName());
         userDTO.setSurname(user.getSurname());

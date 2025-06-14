@@ -34,8 +34,8 @@ public class UserMongoDAO {
     private MongoUserRepository mongoUserRepository;
 
     public User addUser(User user) {
-        String hashedPassword = BCrypt.hashpw(user.getPasswordHash(), BCrypt.gensalt());
-        user.setPasswordHash(hashedPassword);
+        String hashedPassword = BCrypt.hashpw(user.getPassword(), BCrypt.gensalt());
+        user.setPassword(hashedPassword);
 
         return repo.save(user);
         
@@ -51,11 +51,11 @@ public class UserMongoDAO {
 
     public User editUser(User user) {
         Update update = new Update();
-        if (user.getPasswordHash() != null) {
+        if (user.getPassword() != null) {
             // generate hash from password with bcrypt
-            String hashedPassword = BCrypt.hashpw(user.getPasswordHash(), BCrypt.gensalt());
+            String hashedPassword = BCrypt.hashpw(user.getPassword(), BCrypt.gensalt());
 
-            update.set("passwordHash",hashedPassword);
+            update.set("password",hashedPassword);
         }
         if (user.getEmail() != null) {
             update.set("email", user.getEmail());
