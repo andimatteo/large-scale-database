@@ -20,7 +20,8 @@ public class UserController {
     @Autowired
     private UserService userService;
 
-    // create an endpoint to edit user parameters
+    // PUT /api/user/user : update user info
+    // query parameters: userDTO
     @PutMapping("/user")
     public ResponseEntity<ResponseDTO<UserDTO>> editPassword(@RequestBody UserDTO userDTO) {
         try {
@@ -40,12 +41,56 @@ public class UserController {
                     .body(new ResponseDTO<>(false, "Error updating password: " + e.getMessage(), null));
         }
     }
-    
+
+    // DELETE /api/user/user : delete user
+    // query parameters: username
+
+    // POST /api/user/project : create new project
+    // query parameters: projectDTO
+
+    // PUT /api/user/project : update project
+    // query parameters: projectDTO
+
+    // DELETE /api/user/project : delete project
+    // query parameters: projectDTO
+
+    // PUT /api/user/project/ownership : change ownership of project
+    // query parameters: new username
+
+    // POST /api/user/commit : create new commit
+    // query parameters: CommitDTO
+
+    // PUT /api/user/commit : update commit
+    // query parameters: CommitDTO
+
+    // POST /api/user/file : create new file
+    // query parameters: FileDTO with content
+
+    // PUT /api/user/file : udpate file
+    // query parameters: FileDTO with content
+
+    // DELETE /api/user/file/{id} : delete file by id
+
+    // DELETE /api/user/file : delete file by projectId and path
+    // query parameters: projectId and path
+
+    // GET /api/distance/follow/{username} : compute follow distance between me and user {username}
+
+    // GET /api/distance/follow/{username}/{username} : compute follow distance between two users
+
+    // GET /api/distance/project/{username} : compute project distance between me and user {username}
+
+    // GET /api/distance/project/{username}/{username} : compute project distance between two users
+
     // GET /api/user/vulnerability : discover vulnerabilities on project {id} from graph
     // query parameters: project id
 
-    // GET /api/user/inefficiencies : discover inefficiencies in project {id} from graph
-    // query parameters: project id
+    // GET /api/user/discover/projects : discover new projects (based on projects of pepole i follow)
+    // query parameters: username
 
-    // GET /
+    // GET /api/user/discover/people : discover new people I can follow (friends of friends)
+    // query parameters: username
+
+    // GET /api/user/inefficiencies : discover inefficiencies in project {id} from graph
+    // query parameters: project id --> 20 metodi ordinati per hotness decrescente in un progetto
 }
