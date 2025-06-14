@@ -1,4 +1,4 @@
-package it.unipi.githeritage.model.mongodb;
+package it.unipi.githeritage.Model.MongoDB;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;

@@ -1,12 +1,12 @@
-package it.unipi.githeritage.model.mongodb;
+package it.unipi.githeritage.Model.MongoDB;
 
+import it.unipi.githeritage.DTO.ProjectDTO;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import it.unipi.githeritage.model.mongodb.File;
 import lombok.Data;
 
 import java.time.Instant;
@@ -27,9 +27,26 @@ public class Project {
     private String description;
     private String owner;
     private String version;
-    private List<String> administrators;
-    private List<Comment> comments;
     private Instant creationDate;
-    private Set<File> files;
+    private List<String> administrators;
+    private Set<String> fileIds;
+
+    // array of comments
+    private List<Comment> comments;
+
+    // array of commits
+    private List<Commit> commits;
+
+    public ProjectDTO toDTO() {
+        ProjectDTO dto = new ProjectDTO();
+        dto.setId(this.id);
+        dto.setName(this.name);
+        dto.setDescription(this.description);
+        dto.setOwner(this.owner);
+        dto.setVersion(this.version);
+        dto.setAdministrators(this.administrators);
+        dto.setCreationDate(this.creationDate);
+        return dto;
+    }
 }
 

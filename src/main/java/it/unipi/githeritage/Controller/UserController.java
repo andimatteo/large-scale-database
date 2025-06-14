@@ -1,4 +1,4 @@
-package it.unipi.githeritage.controller;
+package it.unipi.githeritage.Controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -7,14 +7,11 @@ import org.springframework.web.bind.annotation.*;
 
 import it.unipi.githeritage.DTO.ResponseDTO;
 import it.unipi.githeritage.DTO.UserDTO;
-import it.unipi.githeritage.model.mongodb.User;
-import it.unipi.githeritage.service.mongodb.UserService;
+import it.unipi.githeritage.Service.UserService;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import it.unipi.githeritage.config.Security.CustomUserDetails;
-
-import java.util.List;
+import it.unipi.githeritage.Config.Security.CustomUserDetails;
 
 @RestController
 @RequestMapping("/api/user")
@@ -44,6 +41,11 @@ public class UserController {
         }
     }
     
+    // GET /api/user/vulnerability : discover vulnerabilities on project {id} from graph
+    // query parameters: project id
 
+    // GET /api/user/inefficiencies : discover inefficiencies in project {id} from graph
+    // query parameters: project id
 
+    // GET /
 }

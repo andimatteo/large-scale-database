@@ -1,4 +1,4 @@
-package it.unipi.githeritage.config.Security;
+package it.unipi.githeritage.Config.Security;
 
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;

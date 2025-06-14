@@ -1,4 +1,4 @@
-package it.unipi.githeritage.model.mongodb;
+package it.unipi.githeritage.Model.MongoDB;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -19,8 +19,7 @@ public class Comment {
     @JsonProperty("_id")
     private String id;
 
-    //private String authorId;
-    private String authorName;
+    private String username;
     private Integer stars;
     private String text;
     private Instant timestamp;

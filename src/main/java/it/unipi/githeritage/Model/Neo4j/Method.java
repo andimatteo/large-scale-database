@@ -1,4 +1,4 @@
-package it.unipi.githeritage.model.neo4j;
+package it.unipi.githeritage.Model.Neo4j;
 
 import org.springframework.data.neo4j.core.schema.Id;
 import org.springframework.data.neo4j.core.schema.Node;
@@ -11,6 +11,8 @@ import lombok.Data;
 public class Method {
     @Id
     private String id;
+
+    private String name;
 
     private float hotness;
     

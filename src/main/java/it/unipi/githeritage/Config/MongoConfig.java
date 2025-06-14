@@ -1,4 +1,4 @@
-package it.unipi.githeritage.config;
+package it.unipi.githeritage.Config;
 
 import org.springframework.context.annotation.Configuration;
 
