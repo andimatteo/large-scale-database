@@ -3,6 +3,7 @@ package it.unipi.githeritage.Service;
 import com.mongodb.client.MongoClient;
 import it.unipi.githeritage.DAO.MongoDB.ProjectMongoDAO;
 import it.unipi.githeritage.DAO.MongoDB.UserMongoDAO;
+import it.unipi.githeritage.DAO.Neo4j.Neo4jDAO;
 import it.unipi.githeritage.DTO.*;
 import it.unipi.githeritage.Model.MongoDB.Commit;
 import it.unipi.githeritage.Model.MongoDB.Project;
@@ -32,6 +33,9 @@ public class ProjectService {
 
     @Autowired
     private ProjectMongoDAO projectMongoDAO;
+
+    @Autowired
+    private Neo4jDAO neo4jDAO;
 
 
     private CommitDTO mapCommit(Commit c) {
@@ -98,4 +102,26 @@ public class ProjectService {
     public List<ContribDTO> lastMonthsContributors(String projectId, int months) {
         return projectMongoDAO.getLastMonthsByProject(projectId, months);
     }
+
+    public List<String> getFirstLevelDeps(String projectId) {
+        return neo4jDAO.firstLevelDependencies(projectId);
+    }
+
+    public List<String> getAllRecursiveDeps(String projectId) {
+        return neo4jDAO.recursiveDependencies(projectId);
+    }
+
+    public List<String> getAllRecursiveDepsPaginated(String projectId, int page) {
+        return neo4jDAO.recursiveDependenciesPaginated(projectId,page);
+    }
+
+    public List<String> getAllMethods(String projectId) {
+        return neo4jDAO.projectMethods(projectId);
+    }
+
+    public List<String> getAllMethodsPaginated(String projectId, int page) {
+        return neo4jDAO.projectMethodsPaginated(projectId, page);
+    }
+
+
 }

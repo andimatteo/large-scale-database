@@ -12,13 +12,13 @@ import org.springframework.security.crypto.bcrypt.BCrypt;
 import it.unipi.githeritage.DTO.UserDTO;
 import it.unipi.githeritage.Model.MongoDB.User;
 import org.bson.Document;
-import org.springframework.stereotype.Component;
 
 import it.unipi.githeritage.Repository.MongoDB.MongoUserRepository;
+import org.springframework.stereotype.Repository;
 
 import java.util.*;
 
-@Component
+@Repository
 public class UserMongoDAO {
 
     @Autowired

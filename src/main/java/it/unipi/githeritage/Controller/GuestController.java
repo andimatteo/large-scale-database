@@ -271,7 +271,7 @@ public class GuestController {
     }
 
 
-    // get /api/gues/contributors/{months}
+    // GET /api/guest/contributors/{months}
     // request param projectId
     @GetMapping("/contributors/{months}")
     public ResponseEntity<ResponseDTO<List<ContribDTO>>> getRecentContributors(
@@ -289,5 +289,97 @@ public class GuestController {
                             null));
         }
     }
+
+    // GET /api/guest/dependencies : list all 1st level dependencies for project
+    // query parameters: projectId
+    @GetMapping("/dependencies")
+    public ResponseEntity<ResponseDTO<List<String>>> getFirstLevelDependencies(
+            @RequestParam String projectId
+    ) {
+        try {
+            List<String> deps = projectService.getFirstLevelDeps(projectId);
+            return ResponseEntity.ok(new ResponseDTO<>(true, "", deps));
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false,
+                            "Error computing all-time leaderboard: " + e.getMessage(),
+                            null));
+        }
+    }
+
+    // GET /api/guest/dependencies/recursive : list all project dependencies (first 200)
+    // query parameters: projectId
+    @GetMapping("/dependencies/recursive")
+    public ResponseEntity<ResponseDTO<List<String>>> getRecursiveDependencies(
+            @RequestParam String projectId
+    ) {
+        try {
+            List<String> deps = projectService.getAllRecursiveDeps(projectId);
+            return ResponseEntity.ok(new ResponseDTO<>(true, "", deps));
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false,
+                            "Error computing all-time leaderboard: " + e.getMessage(),
+                            null));
+        }
+    }
+    // GET /api/guest/dependencies/recursive/{page} : list all project dependencies in pages of 100
+    // query parameters: projectId
+    @GetMapping("/dependencies/recursive/{page}")
+    public ResponseEntity<ResponseDTO<List<String>>> getRecursiveDependenciesPaginated(
+            @RequestParam String projectId,
+            @PathVariable int page
+    ) {
+        try {
+            List<String> deps = projectService.getAllRecursiveDepsPaginated(projectId,page);
+            return ResponseEntity.ok(new ResponseDTO<>(true, "", deps));
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false,
+                            "Error computing all-time leaderboard: " + e.getMessage(),
+                            null));
+        }
+    }
+
+    // GET /api/guest/methods : list all project methods
+    // query parameters: projectId
+    @GetMapping("/methods")
+    public ResponseEntity<ResponseDTO<List<String>>> getProjectMethods(
+            @RequestParam String projectId
+    ) {
+        try {
+            List<String> methods = projectService.getAllMethods(projectId);
+            return ResponseEntity.ok(new ResponseDTO<>(true, "", methods));
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false,
+                            "Error computing all-time leaderboard: " + e.getMessage(),
+                            null));
+        }
+    }
+
+    // GET /api/guest/methods : list all project methods in pages of 100
+    // query parameters: projectId
+    @GetMapping("/methods/{page}")
+    public ResponseEntity<ResponseDTO<List<String>>> getProjectMethodsPaginated(
+            @RequestParam String projectId,
+            @PathVariable int page
+    ) {
+        try {
+            List<String> methods = projectService.getAllMethodsPaginated(projectId,page);
+            return ResponseEntity.ok(new ResponseDTO<>(true, "", methods));
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false,
+                            "Error computing all-time leaderboard: " + e.getMessage(),
+                            null));
+        }
+    }
+
 
 }
