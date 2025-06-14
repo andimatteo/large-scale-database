@@ -8,4 +8,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/admin")
 @AllArgsConstructor
 public class AdminController {
+
+    // DELETE /api/admin/user : delete arbitrary user
+    // query paramters: username
 }
