@@ -1,6 +1,8 @@
 package it.unipi.githeritage.DTO;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+
+import it.unipi.githeritage.Model.MongoDB.Project;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -21,4 +23,16 @@ public class ProjectDTO {
     private String version;
     private List<String> administrators;
     private Instant creationDate;
+
+    public static ProjectDTO fromProject(Project savedProject) {
+        ProjectDTO projectDTO = new ProjectDTO();
+        projectDTO.setId(savedProject.getId());
+        projectDTO.setName(savedProject.getName());
+        projectDTO.setDescription(savedProject.getDescription());
+        projectDTO.setOwner(savedProject.getOwner());
+        projectDTO.setVersion(savedProject.getVersion());
+        projectDTO.setCreationDate(savedProject.getCreationDate());
+        projectDTO.setAdministrators(savedProject.getAdministrators());
+        return projectDTO;
+    }
 }

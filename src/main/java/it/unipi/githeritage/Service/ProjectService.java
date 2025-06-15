@@ -1,5 +1,6 @@
 package it.unipi.githeritage.Service;
 
+import com.mongodb.client.ClientSession;
 import com.mongodb.client.MongoClient;
 import it.unipi.githeritage.DAO.MongoDB.ProjectMongoDAO;
 import it.unipi.githeritage.DAO.MongoDB.UserMongoDAO;
@@ -37,6 +38,32 @@ public class ProjectService {
     @Autowired
     private Neo4jDAO neo4jDAO;
 
+
+    // create a new project
+    public ProjectDTO addProject(ProjectDTO projectDTO) {
+        ClientSession session = mongoClient.startSession();
+        Boolean neo4j = false;
+        try {
+            session.startTransaction();
+            
+            ProjectDTO newProject = projectMongoDAO.addProject(projectDTO);
+            
+
+            // Save the project in Neo4j
+            neo4jDAO.addProject(newProject);
+            
+            neo4j = true;
+            session.commitTransaction();
+            return newProject;
+
+            
+        } catch (Exception e) {
+            session.abortTransaction();
+            return null; // Return null or handle the error appropriately
+        } finally {
+            session.close();
+        }
+    }
 
     private CommitDTO mapCommit(Commit c) {
         CommitDTO dto = new CommitDTO();

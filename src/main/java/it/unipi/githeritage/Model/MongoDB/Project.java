@@ -3,6 +3,7 @@ package it.unipi.githeritage.Model.MongoDB;
 import it.unipi.githeritage.DTO.ProjectDTO;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.security.access.method.P;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -37,16 +38,28 @@ public class Project {
     // array of commits
     private List<Commit> commits;
 
-    public ProjectDTO toDTO() {
-        ProjectDTO dto = new ProjectDTO();
-        dto.setId(this.id);
-        dto.setName(this.name);
-        dto.setDescription(this.description);
-        dto.setOwner(this.owner);
-        dto.setVersion(this.version);
-        dto.setAdministrators(this.administrators);
-        dto.setCreationDate(this.creationDate);
-        return dto;
+    public ProjectDTO toDTO(Project project) {
+        ProjectDTO projectDTO = new ProjectDTO();
+        projectDTO.setId(project.getId());
+        projectDTO.setName(project.getName());
+        projectDTO.setDescription(project.getDescription());
+        projectDTO.setOwner(project.getOwner());
+        projectDTO.setVersion(project.getVersion());
+        projectDTO.setCreationDate(project.getCreationDate());
+        projectDTO.setAdministrators(project.getAdministrators());
+        return projectDTO;
+    }
+
+    public static Project fromDTO(ProjectDTO projectDTO) {
+        Project project = new Project();
+        project.setId(projectDTO.getId());
+        project.setName(projectDTO.getName());
+        project.setDescription(projectDTO.getDescription());
+        project.setOwner(projectDTO.getOwner());
+        project.setVersion(projectDTO.getVersion());
+        project.setCreationDate(projectDTO.getCreationDate());
+        project.setAdministrators(projectDTO.getAdministrators());
+        return project;
     }
 }
 

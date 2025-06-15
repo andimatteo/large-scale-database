@@ -4,6 +4,10 @@ import com.mongodb.client.MongoCollection;
 import it.unipi.githeritage.DTO.ContribDTO;
 import it.unipi.githeritage.DTO.LeaderboardProjectDTO;
 import it.unipi.githeritage.DTO.UserActivityDistributionDTO;
+import it.unipi.githeritage.Model.MongoDB.Project;
+import it.unipi.githeritage.Repository.MongoDB.MongoProjectRepository;
+import it.unipi.githeritage.Repository.MongoDB.MongoUserRepository;
+
 import org.bson.Document;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
@@ -24,15 +28,18 @@ public class ProjectMongoDAO {
     @Autowired
     private MongoTemplate mongoTemplate;
 
+     @Autowired
+    private MongoProjectRepository repo;
+
     public UserActivityDistributionDTO getUserActivityDistribution(String username) {
         List<Document> pipeline = List.of(
-                new Document("$unwind", "$commits"),
-                new Document("$match", new Document("commits.author", username)),
-                new Document("$group", new Document("_id",
-                        new Document("$dateTrunc", new Document("date", "$commits.timestamp")
+                new Document("", ""),
+                new Document("", new Document("commits.author", username)),
+                new Document("", new Document("_id",
+                        new Document("", new Document("date", ".timestamp")
                                 .append("unit", "day")))
-                        .append("count", new Document("$sum", 1))),
-                new Document("$sort", new Document("_id", 1))
+                        .append("count", new Document("", 1))),
+                new Document("", new Document("_id", 1))
         );
 
         MongoCollection<Document> collection = mongoTemplate.getCollection("Projects");
@@ -159,5 +166,12 @@ public class ProjectMongoDAO {
         return mongoTemplate
                 .aggregate(agg, "Projects", ContribDTO.class)
                 .getMappedResults();
+    }
+
+    public Object save(Project project) {
+        if (project.getCreationDate() == null) {
+            project.setCreationDate(Instant.now());
+        }
+        return repo.save(project);
     }
 }
