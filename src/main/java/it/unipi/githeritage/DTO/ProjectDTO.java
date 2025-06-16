@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 
 @Data
 @AllArgsConstructor
@@ -23,6 +24,7 @@ public class ProjectDTO {
     private String version;
     private List<String> administrators;
     private Instant creationDate;
+    private Set<String> fileIds;
 
     public static ProjectDTO fromProject(Project savedProject) {
         ProjectDTO projectDTO = new ProjectDTO();
@@ -33,6 +35,7 @@ public class ProjectDTO {
         projectDTO.setVersion(savedProject.getVersion());
         projectDTO.setCreationDate(savedProject.getCreationDate());
         projectDTO.setAdministrators(savedProject.getAdministrators());
+        projectDTO.setFileIds(savedProject.getFileIds());
         return projectDTO;
     }
 }

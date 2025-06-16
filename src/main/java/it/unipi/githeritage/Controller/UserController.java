@@ -1,13 +1,17 @@
 package it.unipi.githeritage.Controller;
 
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import it.unipi.githeritage.DTO.FileDTO;
 import it.unipi.githeritage.DTO.ProjectDTO;
 import it.unipi.githeritage.DTO.ResponseDTO;
 import it.unipi.githeritage.DTO.UserDTO;
+import it.unipi.githeritage.Service.FileService;
 import it.unipi.githeritage.Service.ProjectService;
 import it.unipi.githeritage.Service.UserService;
 
@@ -21,6 +25,10 @@ public class UserController {
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private FileService fileService;
+
     @Autowired
     private ProjectService projectService;
 
@@ -64,6 +72,8 @@ public class UserController {
 
             // Set the username of the project to the authenticated user
             projectDTO.setOwner(authenticatedUsername);
+            projectDTO.setAdministrators(List.of(authenticatedUsername));
+            
             // Call the service to create the project
             ProjectDTO createdProject = projectService.addProject(projectDTO);
             return ResponseEntity.ok(new ResponseDTO<>(true, "Project created successfully", createdProject));
@@ -107,6 +117,24 @@ public class UserController {
 
     // POST /api/user/file : create new file
     // query parameters: FileDTO with content
+
+    @PostMapping("/file")
+    public ResponseEntity<ResponseDTO<?>> createFile(@RequestBody FileDTO fileDTO) {
+        try {
+            // Get the authenticated user from security context
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
+            //System.out.println("Authenticated user: " + authenticatedUser);
+            String authenticatedUsername = authenticatedUser.getUsername();
+
+            // Call the service to create the file
+            fileService.addFile(fileDTO, authenticatedUsername);
+            return ResponseEntity.ok(new ResponseDTO<>(true, "File created successfully", null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false, "Error creating file: " + e.getMessage(), null));
+        }
+    }
 
     // PUT /api/user/file : udpate file
     // query parameters: FileDTO with content

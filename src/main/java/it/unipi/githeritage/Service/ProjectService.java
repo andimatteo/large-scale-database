@@ -163,9 +163,8 @@ public class ProjectService {
                 throw new RuntimeException("Project not found with id: " + projectId);
             }
             
-            // Check if the authenticated user is the project owner
-            if (!authenticatedUsername.equals(existingProject.getOwner())) {
-                throw new RuntimeException("Access denied: Only the project owner can update this project");
+            if (!existingProject.getAdministrators().contains(authenticatedUsername)) {
+                throw new RuntimeException("User is not authorized to update this project.");
             }
             
             // Set the project ID to ensure we're updating the correct project
