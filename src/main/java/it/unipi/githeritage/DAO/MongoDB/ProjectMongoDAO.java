@@ -3,6 +3,7 @@ package it.unipi.githeritage.DAO.MongoDB;
 import com.mongodb.client.MongoCollection;
 import it.unipi.githeritage.DTO.ContribDTO;
 import it.unipi.githeritage.DTO.LeaderboardProjectDTO;
+import it.unipi.githeritage.DTO.ProjectDTO;
 import it.unipi.githeritage.DTO.UserActivityDistributionDTO;
 import it.unipi.githeritage.Model.MongoDB.Project;
 import it.unipi.githeritage.Repository.MongoDB.MongoProjectRepository;
@@ -174,4 +175,24 @@ public class ProjectMongoDAO {
         }
         return repo.save(project);
     }
+
+    public ProjectDTO addProject(ProjectDTO projectDTO) {
+        Project project = Project.fromDTO(projectDTO);
+        if (project.getCreationDate() == null) {
+            project.setCreationDate(Instant.now());
+        }
+        Project savedProject = repo.save(project);
+        return ProjectDTO.fromProject(savedProject);
+    }
+
+    public ProjectDTO updateProject(ProjectDTO projectDTO) {
+        // update existing project
+        Project existingProject = repo.findById(projectDTO.getId())
+                .orElseThrow(() -> new RuntimeException("Project not found with id: " + projectDTO.getId()));
+        existingProject.setName(projectDTO.getName());
+        existingProject.setDescription(projectDTO.getDescription());
+        existingProject.setOwner(projectDTO.getOwner());
+        Project updatedProject = repo.save(existingProject);
+        return ProjectDTO.fromProject(updatedProject);        
+}
 }

@@ -10,6 +10,7 @@ import com.mongodb.client.ClientSession;
 import com.mongodb.client.MongoClient;
 
 import it.unipi.githeritage.DAO.MongoDB.UserMongoDAO;
+import it.unipi.githeritage.DAO.Neo4j.Neo4jDAO;
 import it.unipi.githeritage.DTO.UserDTO;
 import it.unipi.githeritage.Model.MongoDB.User;
 import lombok.AllArgsConstructor;
@@ -24,6 +25,9 @@ public class UserService {
 
     @Autowired
     private UserMongoDAO userMongoDAO;
+
+    @Autowired
+    private Neo4jDAO neo4jDAO;
 
     @Autowired
     private MongoUserRepository mongoUserRepository;
@@ -44,7 +48,7 @@ public class UserService {
             UserDTO addedUser = UserDTO.fromUser(userMongoDAO.addUser(userDTO));
             // Save the user in Neo4j
 
-            //userNeo4jDAO.addUser(userDTO);
+            neo4jDAO.addUser(userDTO);
             neo4j = true;
             session.commitTransaction();
 
@@ -85,4 +89,43 @@ public class UserService {
         return neoUserRepository.findFollowsUsernamesByUsername(username);
     }
 
+    public boolean followUser(String followerUsername, String followedUsername) {
+        ClientSession session = mongoClient.startSession();
+        try {
+            System.out.println("Starting transaction to follow user: " + followerUsername + " -> " + followedUsername);
+            session.startTransaction();
+            
+            // Create the FOLLOWS relationship in Neo4j
+            neo4jDAO.followUser(followerUsername, followedUsername);
+            
+            session.commitTransaction();
+            return true;
+        } catch (Exception e) {
+            session.abortTransaction();
+            System.err.println("Error following user: " + e.getMessage());
+            return false;
+        } finally {
+            session.close();
+        }
+    }
+
+    public boolean unfollowUser(String followerUsername, String followedUsername) {
+        ClientSession session = mongoClient.startSession();
+        try {
+            System.out.println("Starting transaction to unfollow user: " + followerUsername + " -> " + followedUsername);
+            session.startTransaction();
+            
+            // Remove the FOLLOWS relationship in Neo4j
+            neo4jDAO.unfollowUser(followerUsername, followedUsername);
+            
+            session.commitTransaction();
+            return true;
+        } catch (Exception e) {
+            session.abortTransaction();
+            System.err.println("Error unfollowing user: " + e.getMessage());
+            return false;
+        } finally {
+            session.close();
+        }
+    }
 }

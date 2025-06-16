@@ -5,8 +5,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import it.unipi.githeritage.DTO.ProjectDTO;
 import it.unipi.githeritage.DTO.ResponseDTO;
 import it.unipi.githeritage.DTO.UserDTO;
+import it.unipi.githeritage.Service.ProjectService;
 import it.unipi.githeritage.Service.UserService;
 
 import org.springframework.security.core.Authentication;
@@ -19,6 +21,8 @@ public class UserController {
 
     @Autowired
     private UserService userService;
+    @Autowired
+    private ProjectService projectService;
 
     // PUT /api/user/user : update user info
     // query parameters: userDTO
@@ -49,8 +53,45 @@ public class UserController {
     // POST /api/user/project : create new project
     // query parameters: projectDTO
 
+    @PostMapping("/project")
+    public ResponseEntity<ResponseDTO<?>> createProject(@RequestBody ProjectDTO projectDTO) {
+        try {
+            // Get the authenticated user from security context
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
+            //System.out.println("Authenticated user: " + authenticatedUser);
+            String authenticatedUsername = authenticatedUser.getUsername(); 
+
+            // Set the username of the project to the authenticated user
+            projectDTO.setOwner(authenticatedUsername);
+            // Call the service to create the project
+            ProjectDTO createdProject = projectService.addProject(projectDTO);
+            return ResponseEntity.ok(new ResponseDTO<>(true, "Project created successfully", createdProject));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false, "Error creating project: " + e.getMessage(), null));
+        }
+    }
+
     // PUT /api/user/project : update project
     // query parameters: projectDTO
+
+    @PutMapping("/project")
+    public ResponseEntity<ResponseDTO<?>> updateProject(@RequestBody ProjectDTO projectDTO) {
+        try {
+            // Get the authenticated user from security context
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
+            //System.out.println("Authenticated user: " + authenticatedUser);
+            String authenticatedUsername = authenticatedUser.getUsername();
+            // Call the service to update the project
+            ProjectDTO updatedProject = projectService.updateProject(projectDTO, authenticatedUsername);
+            return ResponseEntity.ok(new ResponseDTO<>(true, "Project updated successfully", updatedProject));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false, "Error updating project: " + e.getMessage(), null));
+        }
+    }
 
     // DELETE /api/user/project : delete project
     // query parameters: projectDTO
@@ -74,6 +115,44 @@ public class UserController {
 
     // DELETE /api/user/file : delete file by projectId and path
     // query parameters: projectId and path
+
+    // POST /api/user/follow : follow a user
+    // query parameters: username to follow
+
+    @PostMapping("/follow")
+    public ResponseEntity<ResponseDTO<?>> followUser(@RequestParam String username) {
+        try {
+            // Get the authenticated user from security context
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
+            //System.out.println("Authenticated user: " + authenticatedUser);
+            String authenticatedUsername = authenticatedUser.getUsername();
+
+            // Call the service to follow the user
+            userService.followUser(authenticatedUsername, username);
+            return ResponseEntity.ok(new ResponseDTO<>(true, "User followed successfully", null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false, "Error following user: " + e.getMessage(), null));
+        }
+    }
+
+    @DeleteMapping("/follow")
+    public ResponseEntity<ResponseDTO<?>> unfollowUser(@RequestParam String username) {
+        try {
+            // Get the authenticated user from security context
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
+            //System.out.println("Authenticated user: " + authenticatedUser);
+            String authenticatedUsername = authenticatedUser.getUsername();
+            // Call the service to unfollow the user
+            userService.unfollowUser(authenticatedUsername, username);
+            return ResponseEntity.ok(new ResponseDTO<>(true, "User unfollowed successfully", null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false, "Error unfollowing user: " + e.getMessage(), null));
+        }
+    }
 
     // GET /api/distance/follow/{username} : compute follow distance between me and user {username}
 

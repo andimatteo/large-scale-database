@@ -42,24 +42,24 @@ public class ProjectService {
     // create a new project
     public ProjectDTO addProject(ProjectDTO projectDTO) {
         ClientSession session = mongoClient.startSession();
-        Boolean neo4j = false;
+        ProjectDTO newProject = null;
         try {
             session.startTransaction();
             
-            ProjectDTO newProject = projectMongoDAO.addProject(projectDTO);
+            // Save the project in MongoDB first
+            newProject = projectMongoDAO.addProject(projectDTO);
             
-
             // Save the project in Neo4j
             neo4jDAO.addProject(newProject);
-            
-            neo4j = true;
+
             session.commitTransaction();
             return newProject;
-
             
         } catch (Exception e) {
             session.abortTransaction();
-            return null; // Return null or handle the error appropriately
+            // If Neo4j failed but MongoDB succeeded, we should handle cleanup
+            // For now, just return null
+            return null;
         } finally {
             session.close();
         }
@@ -76,7 +76,7 @@ public class ProjectService {
 
     public ProjectDTO getProjectById(String id) {
         Optional<Project> opt = mongoProjectRepository.findById(id);
-        return opt.map(Project::toDTO).orElse(null);
+        return opt.isPresent() ? opt.get().toDTO(opt.get()) : null; // TODO controllare che abbia senso
     }
 
     public List<CommitDTO> getLast40Commits(String id) {
@@ -150,5 +150,42 @@ public class ProjectService {
         return neo4jDAO.projectMethodsPaginated(projectId, page);
     }
 
+    public ProjectDTO updateProject(ProjectDTO projectDTO, String authenticatedUsername) {
+        ClientSession session = mongoClient.startSession();
+        try {
+            session.startTransaction();
+
+            String projectId = projectDTO.getId();
+            
+            // First, get the existing project to check ownership
+            ProjectDTO existingProject = getProjectById(projectId);
+            if (existingProject == null) {
+                throw new RuntimeException("Project not found with id: " + projectId);
+            }
+            
+            // Check if the authenticated user is the project owner
+            if (!authenticatedUsername.equals(existingProject.getOwner())) {
+                throw new RuntimeException("Access denied: Only the project owner can update this project");
+            }
+            
+            // Set the project ID to ensure we're updating the correct project
+            projectDTO.setId(projectId);
+            
+            // Update the project in MongoDB
+            ProjectDTO updatedProject = projectMongoDAO.updateProject(projectDTO);
+            
+            // Update the project in Neo4j if needed
+            neo4jDAO.updateProject(updatedProject);
+            
+            session.commitTransaction();
+            return updatedProject;
+            
+        } catch (Exception e) {
+            session.abortTransaction();
+            throw new RuntimeException("Failed to update project: " + e.getMessage(), e);
+        } finally {
+            session.close();
+        }
+    }
 
 }
