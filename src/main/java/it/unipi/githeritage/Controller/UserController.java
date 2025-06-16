@@ -139,6 +139,23 @@ public class UserController {
     // PUT /api/user/file : udpate file
     // query parameters: FileDTO with content
 
+    @PutMapping("/file")
+    public ResponseEntity<ResponseDTO<?>> updateFile(@RequestBody FileDTO fileDTO) {
+        try {
+            // Get the authenticated user from security context
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
+            String authenticatedUsername = authenticatedUser.getUsername();
+
+            // Call the service to update the file
+            fileService.updateFile(fileDTO, authenticatedUsername);
+            return ResponseEntity.ok(new ResponseDTO<>(true, "File updated successfully", null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false, "Error updating file: " + e.getMessage(), null));
+        }
+    }
+
     // DELETE /api/user/file/{id} : delete file by id
 
     // DELETE /api/user/file : delete file by projectId and path

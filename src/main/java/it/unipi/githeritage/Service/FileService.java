@@ -60,6 +60,9 @@ public class FileService {
             // Add the file
             FileDTO addedFile = fileMongoDAO.addFile(fileDTO);
 
+            project.getFileIds().add(addedFile.getId());
+            projectService.updateProject(project, authenticatedUsername);
+
             session.commitTransaction();
             return addedFile;
 
