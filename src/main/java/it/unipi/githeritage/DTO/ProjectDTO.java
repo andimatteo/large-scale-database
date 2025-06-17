@@ -2,6 +2,7 @@ package it.unipi.githeritage.DTO;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
+import it.unipi.githeritage.Model.MongoDB.Commit;
 import it.unipi.githeritage.Model.MongoDB.Project;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -22,8 +23,9 @@ public class ProjectDTO {
     private String description;
     private String owner;
     private String version;
-    private List<String> administrators;
     private Instant creationDate;
+    private List<String> administrators;
+    private List<Commit> commits;
     private Set<String> fileIds;
 
     public static ProjectDTO fromProject(Project savedProject) {

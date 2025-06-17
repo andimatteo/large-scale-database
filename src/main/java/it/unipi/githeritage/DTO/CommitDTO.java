@@ -6,14 +6,14 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
+import java.util.List;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class CommitDTO {
-    private String id;
-    private String commitHash;
-    private String message;
-    private Instant timestamp;
+
+    private String author;
+
 }

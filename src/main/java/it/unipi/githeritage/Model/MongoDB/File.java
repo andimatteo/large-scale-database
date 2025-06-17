@@ -10,6 +10,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import lombok.Data;
 
+import java.time.Instant;
 import java.util.Set;
 
 
@@ -17,22 +18,24 @@ import java.util.Set;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @Document(collection = "Files")
 @CompoundIndexes({
-        @CompoundIndex(name = "projectId_name_idx", def = "{'projectId': 1, 'path': 1}")
+        @CompoundIndex(name = "owner_projectName_path_idx", def = "{ 'owner': 1, 'projectName': 1, 'path': 1 }")
 })
-// compound index that supports both queries on:
-//      1. projectId and path
-//      2. projectId alone
 public class File {
 
     @Id
     @JsonProperty("_id")
     private String id;
 
-    private String projectId;   // id of the project
-    private String path;        // absolute path of the file
+    // redundant fields to support index, not join operations
+    private String owner;
+    private String projectName;
 
+    private String path;
     private String type;
     private Integer size;
+    private Integer lines;
+    private Instant lastModified;
+    private String lastModifiedBy;
     private String content;
-    private Set<String> classes;
+
 }

@@ -26,7 +26,6 @@ public class User {
     private String nationality;
     private Integer followerNumber;
     private Integer followingNumber;
-    private List<String> comments;
     private List<String> projects;
     private Boolean isAdmin;
 
@@ -40,7 +39,6 @@ public class User {
         user.setNationality(userDTO.getNationality());
         user.setFollowerNumber(userDTO.getFollowerNumber());
         user.setFollowingNumber(userDTO.getFollowingNumber());
-        user.setComments(userDTO.getComments());
         user.setProjects(userDTO.getProjects());
         user.setIsAdmin(userDTO.getIsAdmin());
         return user;

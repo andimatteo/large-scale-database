@@ -61,6 +61,10 @@ public class UserService {
         }
     }
 
+    public UserDTO deleteUser(String username) {
+        return mongoUserRepository.deleteByUsername(username);
+    }
+
     public UserDTO getUserByUsername(String username) {
         try {
 

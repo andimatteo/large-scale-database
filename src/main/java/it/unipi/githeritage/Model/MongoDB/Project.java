@@ -2,6 +2,8 @@ package it.unipi.githeritage.Model.MongoDB;
 
 import it.unipi.githeritage.DTO.ProjectDTO;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.security.access.method.P;
 
@@ -18,6 +20,9 @@ import java.util.Set;
 @Data
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @Document(collection = "Projects")
+@CompoundIndexes({
+        @CompoundIndex(name = "username_projectName", def = "{ 'owner': 1, 'name': 1 }")
+})
 public class Project {
 
     @Id
@@ -35,7 +40,7 @@ public class Project {
     // array of comments
     private List<Comment> comments;
 
-    // array of commits
+    // reference to commits
     private List<Commit> commits;
 
     public ProjectDTO toDTO(Project project) {

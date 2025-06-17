@@ -7,5 +7,5 @@ import java.util.Optional;
 
 public interface MongoFileRepository extends MongoRepository<File, String> {
     Optional<File> findById(String id);
-    Optional<File> findByProjectIdAndPath(String projectId, String path);
+    Optional<File> findByOwnerAndProjectNameAndPath(String owner, String projectName, String path);
 }

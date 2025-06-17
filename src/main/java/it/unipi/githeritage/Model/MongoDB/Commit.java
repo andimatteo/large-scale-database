@@ -6,6 +6,8 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import lombok.Data;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
 
@@ -17,10 +19,12 @@ public class Commit {
     @JsonProperty("_id")
     private String id;
 
+    @Indexed(name = "idx_commits_author")
+    private String author;
+
     private Integer linesAdded;
     private Integer linesDeleted;
-    private String username;
-    private String commitHash;
-    private String message;
+    private Integer filesModified;
     private Instant timestamp;
+
 }

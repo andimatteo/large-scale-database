@@ -2,6 +2,7 @@ package it.unipi.githeritage.Service;
 
 import com.mongodb.client.ClientSession;
 import com.mongodb.client.MongoClient;
+import it.unipi.githeritage.DAO.MongoDB.FileMongoDAO;
 import it.unipi.githeritage.DAO.MongoDB.ProjectMongoDAO;
 import it.unipi.githeritage.DAO.MongoDB.UserMongoDAO;
 import it.unipi.githeritage.DAO.Neo4j.Neo4jDAO;
@@ -13,7 +14,12 @@ import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Service;
+import com.github.difflib.DiffUtils;
+import com.github.difflib.patch.AbstractDelta;
+import com.github.difflib.patch.DeltaType;
+import com.github.difflib.patch.Patch;
 
+import java.time.Instant;
 import java.util.*;
 
 @Service
@@ -38,6 +44,8 @@ public class ProjectService {
     @Autowired
     private Neo4jDAO neo4jDAO;
 
+    @Autowired
+    private FileMongoDAO fileMongoDAO;
 
     // create a new project
     public ProjectDTO addProject(ProjectDTO projectDTO) {
@@ -47,7 +55,6 @@ public class ProjectService {
             session.startTransaction();
             
             // Save the project in MongoDB first
-            newProject = projectMongoDAO.addProject(projectDTO);
             
             // Save the project in Neo4j
             neo4jDAO.addProject(newProject);
@@ -65,31 +72,34 @@ public class ProjectService {
         }
     }
 
-    private CommitDTO mapCommit(Commit c) {
-        CommitDTO dto = new CommitDTO();
-        dto.setId(c.getId());
-        dto.setCommitHash(c.getCommitHash());
-        dto.setMessage(c.getMessage());
-        dto.setTimestamp(c.getTimestamp());
-        return dto;
-    }
-
     public ProjectDTO getProjectById(String id) {
         Optional<Project> opt = mongoProjectRepository.findById(id);
         return opt.isPresent() ? opt.get().toDTO(opt.get()) : null; // TODO controllare che abbia senso
     }
 
-    public List<CommitDTO> getLast40Commits(String id) {
+    public Optional<ProjectDTO> getProjectByOwnerAndName(String username, String projectName) {
+        return mongoProjectRepository.findByOwnerAndName(username,projectName);
+    }
+
+    public List<Commit> getLast40Commits(String id) {
         return mongoProjectRepository.findById(id)
                 .map(project -> project.getCommits().stream()
                         .sorted(Comparator.comparing(Commit::getTimestamp).reversed())
                         .limit(40)
-                        .map(this::mapCommit)
                         .toList())
                 .orElse(List.of());
     }
 
-    public List<CommitDTO> getCommitsByPage(String id, int page) {
+    public List<Commit> getLast40Commits(String owner, String projectName) {
+        return mongoProjectRepository.findByOwnerAndName(owner,projectName)
+                .map(project -> project.getCommits().stream()
+                        .sorted(Comparator.comparing(Commit::getTimestamp).reversed())
+                        .limit(40)
+                        .toList())
+                .orElse(List.of());
+    }
+
+    public List<Commit> getCommitsByPage(String id, int page) {
         int skip = page * 20;
 
         return mongoProjectRepository.findById(id)
@@ -97,7 +107,18 @@ public class ProjectService {
                         .sorted(Comparator.comparing(Commit::getTimestamp).reversed())
                         .skip(skip)
                         .limit(20)
-                        .map(this::mapCommit)
+                        .toList())
+                .orElse(List.of());
+    }
+
+    public List<Commit> getCommitsByPage(String owner, String projectName, int page) {
+        int skip = page * 20;
+
+        return mongoProjectRepository.findByOwnerAndName(owner,projectName)
+                .map(project -> project.getCommits().stream()
+                        .sorted(Comparator.comparing(Commit::getTimestamp).reversed())
+                        .skip(skip)
+                        .limit(20)
                         .toList())
                 .orElse(List.of());
     }
@@ -150,41 +171,152 @@ public class ProjectService {
         return neo4jDAO.projectMethodsPaginated(projectId, page);
     }
 
-    public ProjectDTO updateProject(ProjectDTO projectDTO, String authenticatedUsername) {
-        ClientSession session = mongoClient.startSession();
-        try {
-            session.startTransaction();
+//    public ProjectDTO deleteProject(String projectId, String authenticatedUser) {
+//        // delete project from mongoDB with all its files
+//
+//
+//        // delete project from neo4j with all its methods
+//    }
+//
+//    public ProjectDTO deleteProject(String owner, String projectId, String authenticatedUser) {
+//        // delete project from mongoDB with all its files
+//
+//        // delete project from neo4j with all its methods
+//    }
 
-            String projectId = projectDTO.getId();
-            
-            // First, get the existing project to check ownership
-            ProjectDTO existingProject = getProjectById(projectId);
-            if (existingProject == null) {
-                throw new RuntimeException("Project not found with id: " + projectId);
-            }
-            
-            if (!existingProject.getAdministrators().contains(authenticatedUsername)) {
-                throw new RuntimeException("User is not authorized to update this project.");
-            }
-            
-            // Set the project ID to ensure we're updating the correct project
-            projectDTO.setId(projectId);
-            
-            // Update the project in MongoDB
-            ProjectDTO updatedProject = projectMongoDAO.updateProject(projectDTO);
-            
-            // Update the project in Neo4j if needed
-            neo4jDAO.updateProject(updatedProject);
-            
-            session.commitTransaction();
-            return updatedProject;
-            
-        } catch (Exception e) {
-            session.abortTransaction();
-            throw new RuntimeException("Failed to update project: " + e.getMessage(), e);
-        } finally {
-            session.close();
-        }
-    }
-
+//    public ProjectDTO updateProject(CommitDTO commitDTO, String authenticatedUsername) {
+//        ClientSession session = mongoClient.startSession();
+//        try {
+//            session.startTransaction();
+//
+//            String projectId = commitDTO.getProjectId();
+//            // 1) prendi il progetto e controlla che esista e che l’utente sia admin
+//            ProjectDTO existing = projectMongoDAO.findById(projectId);
+//            if (existing == null) {
+//                throw new RuntimeException("Project not found: " + projectId);
+//            }
+//            if (!existing.getAdministrators().contains(authenticatedUsername)) {
+//                throw new RuntimeException("Forbidden: not an administrator");
+//            }
+//
+//            // 2) applica le modifiche ai file
+//            List<FileChangeDTO> changes = commitDTO.getFileChanges();
+//            int linesAdded = 0, linesDeleted = 0, filesModified = 0;
+//
+//            for (FileChangeDTO change : changes) {
+//                FileDTO file = change.getFile();
+//                String path = file.getPath();
+//                switch (change.getAction()) {
+//
+//                    case "POST":
+//                        // crea nuovo file: non deve già esistere
+//                        if (fileMongoDAO.fileExists(projectId, path)) {
+//                            throw new RuntimeException("File already exists: " + path);
+//                        }
+//                        fileMongoDAO.createFile(projectId, file);
+//                        linesAdded += file.getContent().split("\r?\n").length;
+//                        filesModified++;
+//
+//                        // crea tutti i nodi su neo4j
+//
+//                        break;
+//
+//                    case "PUT":
+//                        // verifica che il file esista
+//                        if (!fileMongoDAO.fileExists(projectId, path)) {
+//                            throw new RuntimeException("File not found for update: " + path);
+//                        }
+//
+//                        // 1) leggi l'entity esistente (che contiene il suo content)
+//                        FileDTO oldFile = fileMongoDAO.findFile(projectId, path);
+//                        List<String> originalLines = Arrays.asList(
+//                                oldFile.getContent().split("\\r?\\n", -1)
+//                        );
+//
+//                        // 2) prepara le nuove righe
+//                        List<String> revisedLines = Arrays.asList(
+//                                file.getContent().split("\\r?\\n", -1)
+//                        );
+//
+//                        // 3) calcola il patch
+//                        Patch<String> patch = DiffUtils.diff(originalLines, revisedLines);
+//
+//                        // 4) conta aggiunte e cancellazioni
+//                        for (AbstractDelta<String> delta : patch.getDeltas()) {
+//                            DeltaType type = delta.getType();
+//                            switch (type) {
+//                                case INSERT:
+//                                    linesAdded   += delta.getTarget().size();
+//                                    break;
+//                                case DELETE:
+//                                    linesDeleted += delta.getSource().size();
+//                                    break;
+//                                case CHANGE:
+//                                    linesDeleted += delta.getSource().size();
+//                                    linesAdded   += delta.getTarget().size();
+//                                    break;
+//                            }
+//                        }
+//
+//                        // 5) aggiorna il file su Mongo
+//                        fileMongoDAO.updateFile(file);
+//
+//                        // 6) ottieni tutti i metodi all'interno del file vecchio
+//
+//
+//                        // 7) ottieni tutti i metodi all'interno del file nuovo
+//
+//
+//                        // 8) aggiorna i metodi (rimuovi metodi non piu' presenti
+//                        // inserisci metodi nuovi, modifica le connessioni con gli altri metodi)
+//
+//                        filesModified++;
+//                        break;
+//
+//                    case "DELETE":
+//                        // elimina file esistente
+//                        if (!fileMongoDAO.fileExists(projectId, path)) {
+//                            throw new RuntimeException("File not found for delete: " + path);
+//                        }
+//
+//                        // cercare file per
+//                        // username
+//                        // nome del progetto
+//                        // path del file
+//
+//                        // ottenere tutti quanti i metodi all'interno del file
+//
+//                        // procedere ad eliminare tutti i metodi anche da neo4j
+//
+//                        int removedLines = fileMongoDAO.countFileLines(projectId, path);
+//                        fileMongoDAO.deleteFile(projectId, path);
+//                        linesDeleted += removedLines;
+//                        filesModified++;
+//                        break;
+//
+//                    default:
+//                        throw new RuntimeException("Unsupported action: " + change.getAction());
+//                }
+//            }
+//
+//            // 4) registra un nuovo Commit
+//            Commit commit = new Commit();
+//            commit.setUsername(authenticatedUsername);
+//            commit.setFilesModified(filesModified);
+//            commit.setLinesAdded(linesAdded);
+//            commit.setLinesDeleted(linesDeleted);
+//            commit.setCommitHash(UUID.randomUUID().toString());
+//            commit.setTimestamp(Instant.now());
+//            commitMongoDAO.insertCommit(session, commit);
+//
+//            session.commitTransaction();
+//            return updated;
+//
+//        } catch (Exception e) {
+//            session.abortTransaction();
+//            throw new RuntimeException("Commit failed: " + e.getMessage(), e);
+//        } finally {
+//            session.close();
+//        }
+//    }
 }

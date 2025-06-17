@@ -1,25 +1,24 @@
 package it.unipi.githeritage.DAO.MongoDB;
 
-import com.mongodb.client.MongoCollection;
 import it.unipi.githeritage.DTO.ContribDTO;
 import it.unipi.githeritage.DTO.LeaderboardProjectDTO;
 import it.unipi.githeritage.DTO.ProjectDTO;
 import it.unipi.githeritage.DTO.UserActivityDistributionDTO;
 import it.unipi.githeritage.Model.MongoDB.Project;
 import it.unipi.githeritage.Repository.MongoDB.MongoProjectRepository;
-import it.unipi.githeritage.Repository.MongoDB.MongoUserRepository;
+import org.springframework.data.mongodb.core.aggregation.ArrayOperators.Filter;
 
 import org.bson.Document;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.aggregation.Aggregation;
+import org.springframework.data.mongodb.core.aggregation.*;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
@@ -29,31 +28,73 @@ public class ProjectMongoDAO {
     @Autowired
     private MongoTemplate mongoTemplate;
 
-     @Autowired
+    @Autowired
     private MongoProjectRepository repo;
 
     public UserActivityDistributionDTO getUserActivityDistribution(String username) {
-        List<Document> pipeline = List.of(
-                new Document("", ""),
-                new Document("", new Document("commits.author", username)),
-                new Document("", new Document("_id",
-                        new Document("", new Document("date", ".timestamp")
-                                .append("unit", "day")))
-                        .append("count", new Document("", 1))),
-                new Document("", new Document("_id", 1))
+
+        // 1. intervallo [start, now]
+        Instant now   = Instant.now();
+        Instant start = now.minus(364, ChronoUnit.DAYS).truncatedTo(ChronoUnit.DAYS);
+
+        // 2. project #1: filtro commits per autore e range
+        ProjectionOperation filtCommits = Aggregation.project()
+                .and(
+                        Filter.filter("commits")
+                                .as("c")
+                                .by(BooleanOperators.And.and(
+                                        ComparisonOperators.Eq.valueOf("c.author").equalToValue(username),
+                                        ComparisonOperators.Gte.valueOf("c.timestamp").greaterThanEqualToValue(start),
+                                        ComparisonOperators.Lte.valueOf("c.timestamp").lessThanEqualToValue(now)
+                                ))
+                ).as("commits");
+
+        // 3. unwind
+        UnwindOperation unwind = Aggregation.unwind("commits");
+
+        // 4. project #2: estraggo il campo "day" formattando commits.timestamp in "YYYY-MM-DD"
+        ProjectionOperation projectDay = Aggregation.project()
+                // costruisce il campo day
+                .and(DateOperators.DateToString.dateOf("commits.timestamp")
+                        .toString("%Y-%m-%d"))
+                .as("day");
+
+        // 5. group per quel campo "day"
+        GroupOperation group = Aggregation.group("day")
+                .count().as("count");
+
+        // 6. sort per _id (che è il day string)
+        SortOperation sort = Aggregation.sort(Sort.by("_id").ascending());
+
+        // 7. eseguo la pipeline
+        Aggregation agg = Aggregation.newAggregation(
+                filtCommits,
+                unwind,
+                projectDay,
+                group,
+                sort
         );
+        AggregationResults<Document> results =
+                mongoTemplate.aggregate(agg, "Projects", Document.class);
 
-        MongoCollection<Document> collection = mongoTemplate.getCollection("Projects");
-        List<Document> results = collection.aggregate(pipeline).into(new ArrayList<>());
-
-        Map<LocalDate, Integer> distribution = new LinkedHashMap<>();
-        for (Document doc : results) {
-            Date date = doc.getDate("_id");
-            int count = ((Number) doc.get("count")).intValue();
-            LocalDate localDate = date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
-            distribution.put(localDate, count);
+        // 8. preparo mappa di 365 giorni a zero
+        Map<LocalDate,Integer> distribution = new LinkedHashMap<>();
+        LocalDate today     = LocalDate.now();
+        LocalDate startDate = today.minusDays(364);
+        for (LocalDate d = startDate; !d.isAfter(today); d = d.plusDays(1)) {
+            distribution.put(d, 0);
         }
 
+        // 9. sovrascrivo con i conteggi ritornati
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        for (Document doc : results.getMappedResults()) {
+            String dayStr = doc.getString("_id");          // es. "2025-06-17"
+            int    cnt    = doc.getInteger("count", 0);
+            LocalDate day = LocalDate.parse(dayStr, fmt);
+            distribution.put(day, cnt);
+        }
+
+        // 10. compilo e restituisco il DTO
         UserActivityDistributionDTO dto = new UserActivityDistributionDTO();
         dto.setDailyCommits(distribution);
         return dto;
@@ -194,5 +235,5 @@ public class ProjectMongoDAO {
         existingProject.setOwner(projectDTO.getOwner());
         Project updatedProject = repo.save(existingProject);
         return ProjectDTO.fromProject(updatedProject);        
-}
+    }
 }

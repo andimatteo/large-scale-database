@@ -10,5 +10,22 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminController {
 
     // DELETE /api/admin/user : delete arbitrary user
-    // query paramters: username
+    // query parameters: username
+
+    // DELETE /api/admin/project : delete project
+    // query parameters: projectId
+
+    // PUT /api/adimn/project : update project infos
+    // query parameters: projectDTO
+
+    // DELETE /api/admin/file : delete file
+    // query parameters: projectId, path
+
+    // DELETE /api/admin/file/{fileId} : delete file by Id
+
+    // PUT /api/admin/file : update file
+    // query parameters: fileDTO
+
+
+
 }
