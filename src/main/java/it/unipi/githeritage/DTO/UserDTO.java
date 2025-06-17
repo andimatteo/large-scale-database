@@ -40,7 +40,6 @@ public class UserDTO extends BaseDTO{
         userDTO.setNationality(user.getNationality());
         userDTO.setFollowerNumber(user.getFollowerNumber());
         userDTO.setFollowingNumber(user.getFollowingNumber());
-        userDTO.setComments(user.getComments());
         userDTO.setProjects(user.getProjects());
         userDTO.setIsAdmin(user.getIsAdmin());
         return userDTO;        
