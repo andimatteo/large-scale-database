@@ -203,6 +203,55 @@ public class Neo4jDAO {
         }
     }
 
+    public void deleteProjectNodeById(String projectId) {
+        client.query("""
+        MATCH (p:Project {id: $projectId})
+        DETACH DELETE p
+        """)
+                .bind(projectId).to("projectId")
+                .run();
+    }
+
+    public void deleteProjectNodeByOwnerAndName(String owner, String projectName) {
+        client.query("""
+        MATCH (p:Project)
+        WHERE p.owner = $owner AND p.name = $projectName
+        DETACH DELETE p
+        """)
+                .bind(owner).to("owner")
+                .bind(projectName).to("projectName")
+                .run();
+    }
+
+    public List<String> projectMethodsById(String projectId) {
+        String cypher = """
+        MATCH (p:Project {id: $projectId})-[:HAS_METHOD]->(m:Method)
+        RETURN m.fullyQualifiedName AS sig
+        """;
+        return client.query(cypher)
+                .bind(projectId).to("projectId")
+                .fetch().all()
+                .stream()
+                .map(m -> (String)m.get("sig"))
+                .collect(Collectors.toList());
+    }
+
+    public List<String> projectMethodsByOwnerAndName(String owner, String projectName) {
+        String cypher = """
+        MATCH (p:Project)
+        WHERE p.owner = $owner AND p.name = $projectName
+        MATCH (p)-[:HAS_METHOD]->(m:Method)
+        RETURN m.fullyQualifiedName AS sig
+        """;
+        return client.query(cypher)
+                .bind(owner).to("owner")
+                .bind(projectName).to("projectName")
+                .fetch().all()
+                .stream()
+                .map(m -> (String)m.get("sig"))
+                .collect(Collectors.toList());
+    }
+
     public void followUser(String followerUsername, String followedUsername) {
         // garantisco l’esistenza dei due nodi
         mergeUser(followerUsername);

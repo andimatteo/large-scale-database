@@ -190,19 +190,68 @@ public class ProjectService {
         return neo4jDAO.projectMethodsPaginated(projectId, page);
     }
 
-    // todo finish delete project
     public ProjectDTO deleteProject(String projectId, String authenticatedUser) {
-        // delete project from mongoDB with all its files
-
-
-        // delete project from neo4j with all its methods
+        // 1) prendo document da Mongo
+        Project project = mongoProjectRepository.findById(projectId)
+                .orElseThrow(() -> new RuntimeException("Project not found"));
+        // delego all’altro overload, passandogli owner+name
+        return deleteProject(
+                project.getOwner(),
+                project.getName(),
+                projectId,
+                authenticatedUser
+        );
     }
 
-    // todo finish delete project
-    public ProjectDTO deleteProject(String owner, String projectId, String authenticatedUser) {
-        // delete project from mongoDB with all its files
+    public ProjectDTO deleteProject(String owner,
+                                    String projectName,
+                                    String authenticatedUser) {
+        // cerco in Mongo con owner+name
+        ProjectDTO project = mongoProjectRepository
+                .findByOwnerAndName(owner, projectName)
+                .orElseThrow(() -> new RuntimeException("Project not found"));
+        // delego all’altro overload
+        return deleteProject(
+                owner,
+                projectName,
+                project.getId(),
+                authenticatedUser
+        );
+    }
 
-        // delete project from neo4j with all its methods
+    private ProjectDTO deleteProject(String owner,
+                                     String projectName,
+                                     String projectId,
+                                     String authenticatedUser) {
+        // 1) permessi
+        if (!mongoProjectRepository.findById(projectId)
+                .orElseThrow(() -> new RuntimeException("Project not found"))
+                .getAdministrators().contains(authenticatedUser)) {
+            throw new RuntimeException("Forbidden");
+        }
+
+        // 2) Mongo: cancello tutti i file e il progetto
+        mongoFileRepository.deleteByOwnerAndProjectName(owner, projectName);
+        mongoProjectRepository.deleteById(projectId);
+
+        // 3) Neo4j: prelevo tutti i metodi (usando id)
+        List<String> fqnList = neo4jDAO.projectMethodsById(projectId);
+
+        // 4) rimuovo il nodo Project (e tutte le sue relazioni)
+        neo4jDAO.deleteProjectNodeById(projectId);
+
+        // 5) pulisco i Method rimasti
+        for (String fqn : fqnList) {
+            neo4jDAO.clearMethodCalls(owner, fqn);
+            neo4jDAO.deleteMethodIfOrphan(owner, fqn);
+        }
+
+        // 6) restituisco conferma
+        ProjectDTO dto = new ProjectDTO();
+        dto.setId(projectId);
+        dto.setName(projectName);
+        dto.setOwner(owner);
+        return dto;
     }
 
     // todo finish update project
@@ -297,6 +346,7 @@ public class ProjectService {
                                 .orElseThrow(() -> new RuntimeException("File " + path + " not found"));
                         id = oldFile.getId();
 
+
                         // 2) prendi il vecchio contenuto
                         List<String> originalLines = Arrays.asList(oldFile.getContent()
                                 .split("\\r?\\n", -1));
@@ -319,7 +369,7 @@ public class ProjectService {
                         }
 
                         // 5) aggiorna il file in Mongo
-                        mongoFileRepository.updateById(id, file);
+                        mongoFileRepository.save(file);
 
                         // estraggo FQN dei metodi dal vecchio file
                         CompilationUnit oldCu = StaticJavaParser.parse(oldFile.getContent());
@@ -332,9 +382,12 @@ public class ProjectService {
                         CompilationUnit newCu = StaticJavaParser.parse(newContent);
                         Map<String,String> newMethods = newCu.findAll(MethodDeclaration.class).stream()
                                 .collect(Collectors.toMap(
+                                        // chiave: FQN
                                         md -> md.resolve().getQualifiedSignature(),
-                                        md -> md.getName(),
-                                        (a,b)->a  // in caso di duplicati improbabili
+                                        // valore: nome semplice come String
+                                        md -> md.getNameAsString(),
+                                        // mergeFunction: in caso di duplicati, tieni il primo
+                                        (String existing, String replacement) -> existing
                                 ));
 
                         // 6) rimuovo i metodi ora spariti
@@ -515,6 +568,7 @@ public class ProjectService {
                         oldFile = mongoFileRepository.findByOwnerAndProjectNameAndPath(owner, projectName, path)
                                 .orElseThrow(() -> new RuntimeException("File " + path + " not found"));
                         id = oldFile.getId();
+                        file.setId(id);
 
                         // 2) prendi il vecchio contenuto
                         List<String> originalLines = Arrays.asList(oldFile.getContent()
@@ -538,7 +592,7 @@ public class ProjectService {
                         }
 
                         // 5) aggiorna il file in Mongo
-                        mongoFileRepository.updateById(id, file);
+                        mongoFileRepository.save(file);
 
                         // estraggo FQN dei metodi dal vecchio file
                         CompilationUnit oldCu = StaticJavaParser.parse(oldFile.getContent());
@@ -551,9 +605,12 @@ public class ProjectService {
                         CompilationUnit newCu = StaticJavaParser.parse(newContent);
                         Map<String,String> newMethods = newCu.findAll(MethodDeclaration.class).stream()
                                 .collect(Collectors.toMap(
+                                        // chiave: FQN
                                         md -> md.resolve().getQualifiedSignature(),
-                                        md -> md.getName(),
-                                        (a,b)->a  // in caso di duplicati improbabili
+                                        // valore: nome semplice come String
+                                        md -> md.getNameAsString(),
+                                        // mergeFunction: in caso di duplicati, tieni il primo
+                                        (String existing, String replacement) -> existing
                                 ));
 
                         // 6) rimuovo i metodi ora spariti

@@ -48,7 +48,7 @@ public class UserService {
             UserDTO addedUser = UserDTO.fromUser(userMongoDAO.addUser(userDTO));
             // Save the user in Neo4j
 
-            neo4jDAO.addUser(userDTO);
+            neo4jDAO.mergeUser(userDTO.getUsername());
             neo4j = true;
             session.commitTransaction();
 
