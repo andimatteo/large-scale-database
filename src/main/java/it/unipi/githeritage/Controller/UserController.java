@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.List;
 
 import it.unipi.githeritage.DTO.*;
+import it.unipi.githeritage.Model.MongoDB.Project;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -128,24 +129,49 @@ public class UserController {
         }
     }
 
-    // PUT /api/user/project : update project
-    // query parameters: projectDTO
-//    @PutMapping("/project")
-//    public ResponseEntity<ResponseDTO<?>> updateProject(@RequestBody CommitDTO commitDTO) {
-//        try {
-//            // Get the authenticated user from security context
-//            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-//            CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
-//            //System.out.println("Authenticated user: " + authenticatedUser);
-//            String authenticatedUsername = authenticatedUser.getUsername();
-//            // Call the service to update the project
-//            ProjectDTO updatedProject = projectService.updateProject(commitDTO, authenticatedUsername);
-//            return ResponseEntity.ok(new ResponseDTO<>(true, "Project updated successfully", updatedProject));
-//        } catch (Exception e) {
-//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-//                    .body(new ResponseDTO<>(false, "Error updating project: " + e.getMessage(), null));
-//        }
-//    }
+    // PUT /api/user/project/{project-id} : update project
+    // body: CommitIdDTO
+    @PutMapping("/project/{project-id}")
+    public ResponseEntity<ResponseDTO<?>> updateProject(
+            @PathVariable String projectId, @RequestBody CommitIdDTO commitIdDTO
+    ) {
+        try {
+            // Get the authenticated user from security context
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
+
+            String authenticatedUsername = authenticatedUser.getUsername();
+
+            // Call the service to update the project
+            Project updatedProject = projectService.updateProject(commitIdDTO, authenticatedUsername);
+            return ResponseEntity.ok(new ResponseDTO<>(true, "Project updated successfully", updatedProject));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false, "Error updating project: " + e.getMessage(), null));
+        }
+    }
+
+    // PUT /api/user/project/{project-id} : update project
+    // body: CommitIdDTO
+    @PutMapping("/project/{owner}/{projectName}")
+    public ResponseEntity<ResponseDTO<?>> updateProject(
+            @PathVariable String owner, @PathVariable String projectName, @RequestBody CommitOwnerDTO commitOwnerDTO
+    ) {
+        try {
+            // Get the authenticated user from security context
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
+
+            String authenticatedUsername = authenticatedUser.getUsername();
+
+            // Call the service to update the project
+            ProjectDTO updatedProject = projectService.updateProject(commitOwnerDTO, authenticatedUsername);
+            return ResponseEntity.ok(new ResponseDTO<>(true, "Project updated successfully", updatedProject));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false, "Error updating project: " + e.getMessage(), null));
+        }
+    }
 
     // DELETE /api/user/project?projectId=projectId : delete project
     // query parameters: projectId

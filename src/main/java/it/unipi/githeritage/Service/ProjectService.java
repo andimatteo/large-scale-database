@@ -1,5 +1,6 @@
 package it.unipi.githeritage.Service;
 
+import com.google.common.collect.Sets;
 import com.mongodb.client.ClientSession;
 import com.mongodb.client.MongoClient;
 import it.unipi.githeritage.DAO.MongoDB.FileMongoDAO;
@@ -8,7 +9,10 @@ import it.unipi.githeritage.DAO.MongoDB.UserMongoDAO;
 import it.unipi.githeritage.DAO.Neo4j.Neo4jDAO;
 import it.unipi.githeritage.DTO.*;
 import it.unipi.githeritage.Model.MongoDB.Commit;
+import it.unipi.githeritage.Model.MongoDB.File;
 import it.unipi.githeritage.Model.MongoDB.Project;
+import it.unipi.githeritage.Repository.MongoDB.MongoCommitRepository;
+import it.unipi.githeritage.Repository.MongoDB.MongoFileRepository;
 import it.unipi.githeritage.Repository.MongoDB.MongoProjectRepository;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,9 +22,15 @@ import com.github.difflib.DiffUtils;
 import com.github.difflib.patch.AbstractDelta;
 import com.github.difflib.patch.DeltaType;
 import com.github.difflib.patch.Patch;
+import com.github.javaparser.StaticJavaParser;
+import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
 
 import java.time.Instant;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @AllArgsConstructor
@@ -47,6 +57,13 @@ public class ProjectService {
     @Autowired
     private FileMongoDAO fileMongoDAO;
 
+    @Autowired
+    private MongoFileRepository mongoFileRepository;
+    @Autowired
+    private MongoClient mongo;
+    @Autowired
+    private MongoCommitRepository mongoCommitRepository;
+
     // create a new project
     public ProjectDTO addProject(ProjectDTO projectDTO) {
         ClientSession session = mongoClient.startSession();
@@ -72,11 +89,13 @@ public class ProjectService {
         }
     }
 
+    // todo rimuovere i commits dal risultato della query (projection)
     public ProjectDTO getProjectById(String id) {
         Optional<Project> opt = mongoProjectRepository.findById(id);
         return opt.isPresent() ? opt.get().toDTO(opt.get()) : null; // TODO controllare che abbia senso
     }
 
+    // todo rimuovere i commits dal risultato della query (projection)
     public Optional<ProjectDTO> getProjectByOwnerAndName(String username, String projectName) {
         return mongoProjectRepository.findByOwnerAndName(username,projectName);
     }
@@ -171,152 +190,462 @@ public class ProjectService {
         return neo4jDAO.projectMethodsPaginated(projectId, page);
     }
 
-//    public ProjectDTO deleteProject(String projectId, String authenticatedUser) {
-//        // delete project from mongoDB with all its files
-//
-//
-//        // delete project from neo4j with all its methods
-//    }
-//
-//    public ProjectDTO deleteProject(String owner, String projectId, String authenticatedUser) {
-//        // delete project from mongoDB with all its files
-//
-//        // delete project from neo4j with all its methods
-//    }
+    // todo finish delete project
+    public ProjectDTO deleteProject(String projectId, String authenticatedUser) {
+        // delete project from mongoDB with all its files
 
-//    public ProjectDTO updateProject(CommitDTO commitDTO, String authenticatedUsername) {
-//        ClientSession session = mongoClient.startSession();
-//        try {
-//            session.startTransaction();
-//
-//            String projectId = commitDTO.getProjectId();
-//            // 1) prendi il progetto e controlla che esista e che l’utente sia admin
-//            ProjectDTO existing = projectMongoDAO.findById(projectId);
-//            if (existing == null) {
-//                throw new RuntimeException("Project not found: " + projectId);
-//            }
-//            if (!existing.getAdministrators().contains(authenticatedUsername)) {
-//                throw new RuntimeException("Forbidden: not an administrator");
-//            }
-//
-//            // 2) applica le modifiche ai file
-//            List<FileChangeDTO> changes = commitDTO.getFileChanges();
-//            int linesAdded = 0, linesDeleted = 0, filesModified = 0;
-//
-//            for (FileChangeDTO change : changes) {
-//                FileDTO file = change.getFile();
-//                String path = file.getPath();
-//                switch (change.getAction()) {
-//
-//                    case "POST":
-//                        // crea nuovo file: non deve già esistere
-//                        if (fileMongoDAO.fileExists(projectId, path)) {
-//                            throw new RuntimeException("File already exists: " + path);
-//                        }
-//                        fileMongoDAO.createFile(projectId, file);
-//                        linesAdded += file.getContent().split("\r?\n").length;
-//                        filesModified++;
-//
-//                        // crea tutti i nodi su neo4j
-//
-//                        break;
-//
-//                    case "PUT":
-//                        // verifica che il file esista
-//                        if (!fileMongoDAO.fileExists(projectId, path)) {
-//                            throw new RuntimeException("File not found for update: " + path);
-//                        }
-//
-//                        // 1) leggi l'entity esistente (che contiene il suo content)
-//                        FileDTO oldFile = fileMongoDAO.findFile(projectId, path);
-//                        List<String> originalLines = Arrays.asList(
-//                                oldFile.getContent().split("\\r?\\n", -1)
-//                        );
-//
-//                        // 2) prepara le nuove righe
-//                        List<String> revisedLines = Arrays.asList(
-//                                file.getContent().split("\\r?\\n", -1)
-//                        );
-//
-//                        // 3) calcola il patch
-//                        Patch<String> patch = DiffUtils.diff(originalLines, revisedLines);
-//
-//                        // 4) conta aggiunte e cancellazioni
-//                        for (AbstractDelta<String> delta : patch.getDeltas()) {
-//                            DeltaType type = delta.getType();
-//                            switch (type) {
-//                                case INSERT:
-//                                    linesAdded   += delta.getTarget().size();
-//                                    break;
-//                                case DELETE:
-//                                    linesDeleted += delta.getSource().size();
-//                                    break;
-//                                case CHANGE:
-//                                    linesDeleted += delta.getSource().size();
-//                                    linesAdded   += delta.getTarget().size();
-//                                    break;
-//                            }
-//                        }
-//
-//                        // 5) aggiorna il file su Mongo
-//                        fileMongoDAO.updateFile(file);
-//
-//                        // 6) ottieni tutti i metodi all'interno del file vecchio
-//
-//
-//                        // 7) ottieni tutti i metodi all'interno del file nuovo
-//
-//
-//                        // 8) aggiorna i metodi (rimuovi metodi non piu' presenti
-//                        // inserisci metodi nuovi, modifica le connessioni con gli altri metodi)
-//
-//                        filesModified++;
-//                        break;
-//
-//                    case "DELETE":
-//                        // elimina file esistente
-//                        if (!fileMongoDAO.fileExists(projectId, path)) {
-//                            throw new RuntimeException("File not found for delete: " + path);
-//                        }
-//
-//                        // cercare file per
-//                        // username
-//                        // nome del progetto
-//                        // path del file
-//
-//                        // ottenere tutti quanti i metodi all'interno del file
-//
-//                        // procedere ad eliminare tutti i metodi anche da neo4j
-//
-//                        int removedLines = fileMongoDAO.countFileLines(projectId, path);
-//                        fileMongoDAO.deleteFile(projectId, path);
-//                        linesDeleted += removedLines;
-//                        filesModified++;
-//                        break;
-//
-//                    default:
-//                        throw new RuntimeException("Unsupported action: " + change.getAction());
-//                }
-//            }
-//
-//            // 4) registra un nuovo Commit
-//            Commit commit = new Commit();
-//            commit.setUsername(authenticatedUsername);
-//            commit.setFilesModified(filesModified);
-//            commit.setLinesAdded(linesAdded);
-//            commit.setLinesDeleted(linesDeleted);
-//            commit.setCommitHash(UUID.randomUUID().toString());
-//            commit.setTimestamp(Instant.now());
-//            commitMongoDAO.insertCommit(session, commit);
-//
-//            session.commitTransaction();
-//            return updated;
-//
-//        } catch (Exception e) {
-//            session.abortTransaction();
-//            throw new RuntimeException("Commit failed: " + e.getMessage(), e);
-//        } finally {
-//            session.close();
-//        }
-//    }
+
+        // delete project from neo4j with all its methods
+    }
+
+    // todo finish delete project
+    public ProjectDTO deleteProject(String owner, String projectId, String authenticatedUser) {
+        // delete project from mongoDB with all its files
+
+        // delete project from neo4j with all its methods
+    }
+
+    // todo finish update project
+    public Project updateProject(CommitIdDTO commitIdDTO, String username) {
+        ClientSession session = mongoClient.startSession();
+        try {
+            session.startTransaction();
+
+            String projectId = commitIdDTO.getProjectId();
+            // 1) prendi il progetto e controlla che esista e che l’utente sia admin
+            Project project = mongoProjectRepository.findById(projectId)
+                    .orElseThrow(() -> new RuntimeException("Project not found"));
+
+            String owner = project.getOwner();
+            String projectName = project.getName();
+
+            if (!project.getAdministrators().contains(username)) {
+                throw new RuntimeException("Forbidden: not an administrator");
+            }
+
+            // 2) applica le modifiche ai file
+            List<FileWrapperDTO> changes = commitIdDTO.getFiles();
+            int linesAdded = 0, linesDeleted = 0, filesModified = 0;
+
+            for (FileWrapperDTO change : changes) {
+                File oldFile;
+                String id;
+                File file = change.getFile();
+
+                // set modified timestamp
+                file.setLastModified(Instant.now());
+
+                // set who modified last modified the file
+                file.setLastModifiedBy(username);
+
+
+                String path = file.getPath();
+                switch (change.getAction()) {
+
+                    case "POST":
+                        // 1) salvataggio Mongo
+                        if (mongoFileRepository
+                                .findByOwnerAndProjectNameAndPath(owner, projectName, path)
+                                .isPresent()) {
+                            throw new RuntimeException("File " + path + " already exists");
+                        }
+                        mongoFileRepository.save(file);
+                        filesModified++;
+                        linesAdded += file.getContent().split("\r?\n").length;
+
+                        // 2) aggiorna Neo4j tramite DAO
+                        // 2.1 nodi
+                        neo4jDAO.mergeUser(owner);
+                        neo4jDAO.mergeProject(projectId, projectName);
+                        neo4jDAO.relateUserToProject(owner, projectId);
+
+                        // 2.2 metodi e HAS_METHOD
+                        String content = file.getContent();
+                        CompilationUnit cu = StaticJavaParser.parse(content);
+                        for (MethodDeclaration md : cu.findAll(MethodDeclaration.class)) {
+                            ResolvedMethodDeclaration rmd = md.resolve();
+                            String fqn        = rmd.getQualifiedSignature();
+                            String simpleName = rmd.getName();
+
+                            neo4jDAO.mergeMethod(owner, fqn, simpleName);
+                            neo4jDAO.relateProjectToMethod(projectId, owner, fqn);
+                        }
+
+                        // CALLS
+                        for (MethodDeclaration md : cu.findAll(MethodDeclaration.class)) {
+                            String callerFqn = md.resolve().getQualifiedSignature();
+                            for (MethodCallExpr call : md.findAll(MethodCallExpr.class)) {
+                                String calleeFqn = call.resolve().getQualifiedSignature();
+                                neo4jDAO.relateMethodsCall(owner, callerFqn, calleeFqn);
+                            }
+                        }
+
+                        // 2.4 dipendenze dinamiche tra progetti
+                        cu.getPackageDeclaration().ifPresent(pd -> {
+                            String pkg     = pd.getNameAsString();
+                            String depProj = extractProjectFromPackage(pkg);
+                            if (!depProj.equals(projectName)) {
+                                neo4jDAO.relateProjectDependency(projectId, depProj);
+                            }
+                        });
+
+                        break;
+
+                    case "PUT":
+                        // 1) verifica che il file esista
+                        oldFile = mongoFileRepository.findByOwnerAndProjectNameAndPath(owner, projectName, path)
+                                .orElseThrow(() -> new RuntimeException("File " + path + " not found"));
+                        id = oldFile.getId();
+
+                        // 2) prendi il vecchio contenuto
+                        List<String> originalLines = Arrays.asList(oldFile.getContent()
+                                .split("\\r?\\n", -1));
+
+                        // 3) prepara il nuovo contenuto
+                        List<String> newLines = Arrays.asList(file.getContent()
+                                .split("\\r?\\n", -1));
+
+                        // 4) calcola patch e conta righe
+                        Patch<String> patch = DiffUtils.diff(originalLines, newLines);
+                        for (AbstractDelta<String> delta : patch.getDeltas()) {
+                            switch (delta.getType()) {
+                                case INSERT: linesAdded   += delta.getTarget().size(); break;
+                                case DELETE: linesDeleted += delta.getSource().size(); break;
+                                case CHANGE:
+                                    linesDeleted += delta.getSource().size();
+                                    linesAdded   += delta.getTarget().size();
+                                    break;
+                            }
+                        }
+
+                        // 5) aggiorna il file in Mongo
+                        mongoFileRepository.updateById(id, file);
+
+                        // estraggo FQN dei metodi dal vecchio file
+                        CompilationUnit oldCu = StaticJavaParser.parse(oldFile.getContent());
+                        Set<String> oldMethods = oldCu.findAll(MethodDeclaration.class).stream()
+                                .map(md -> md.resolve().getQualifiedSignature())
+                                .collect(Collectors.toSet());
+
+                        // estraggo FQN e simpleName dei metodi dal nuovo file
+                        String newContent = file.getContent();
+                        CompilationUnit newCu = StaticJavaParser.parse(newContent);
+                        Map<String,String> newMethods = newCu.findAll(MethodDeclaration.class).stream()
+                                .collect(Collectors.toMap(
+                                        md -> md.resolve().getQualifiedSignature(),
+                                        md -> md.getName(),
+                                        (a,b)->a  // in caso di duplicati improbabili
+                                ));
+
+                        // 6) rimuovo i metodi ora spariti
+                        for (String removedFqn : Sets.difference(oldMethods, newMethods.keySet())) {
+                            neo4jDAO.removeProjectToMethod(projectId, owner, removedFqn);
+                            // cancella metodo se orfano
+                            neo4jDAO.deleteMethodIfOrphan(owner, removedFqn);
+                        }
+
+                        // 7) aggiungo i metodi nuovi
+                        for (Map.Entry<String,String> entry : Sets.difference(newMethods.keySet(), oldMethods).stream()
+                                .map(fqn -> Map.entry(fqn, newMethods.get(fqn)))
+                                .collect(Collectors.toList())) {
+                            String fqn        = entry.getKey();
+                            String simpleName = entry.getValue();
+                            neo4jDAO.mergeMethod(owner, fqn, simpleName);
+                            neo4jDAO.relateProjectToMethod(projectId, owner, fqn);
+                        }
+
+                        // 8) aggiorno tutte le CALLS per i metodi rimasti (intersezione)
+                        Set<String> retained = Sets.intersection(oldMethods, newMethods.keySet());
+                        for (String callerFqn : retained) {
+                            // cancello vecchie relazioni CALLS
+                            neo4jDAO.clearMethodCalls(owner, callerFqn);
+
+                            // ristampo le chiamate dal nuovo AST
+                            newCu.findAll(MethodDeclaration.class).stream()
+                                    .filter(md -> md.resolve().getQualifiedSignature().equals(callerFqn))
+                                    .flatMap(md -> md.findAll(MethodCallExpr.class).stream())
+                                    .map(call -> call.resolve().getQualifiedSignature())
+                                    .forEach(calleeFqn ->
+                                            neo4jDAO.relateMethodsCall(owner, callerFqn, calleeFqn)
+                                    );
+                        }
+
+                        filesModified++;
+                        break;
+
+                    case "DELETE":
+                        // 1) verifica che il file esista
+                        oldFile = mongoFileRepository.findByOwnerAndProjectNameAndPath(owner, projectName, path)
+                                .orElseThrow(() -> new RuntimeException("File " + path + " not found"));
+                        id = oldFile.getId();
+
+                        // 2) estrazione metodi
+                        CompilationUnit oldCuDel = StaticJavaParser.parse(oldFile.getContent());
+                        Set<String> methodsToRemove = oldCuDel.findAll(MethodDeclaration.class).stream()
+                                .map(md -> md.resolve().getQualifiedSignature())
+                                .collect(Collectors.toSet());
+
+                        // 3) eliminazione relazioni e metodi
+                        for (String fqn : methodsToRemove) {
+                            neo4jDAO.removeProjectToMethod(projectId, owner, fqn);
+                            neo4jDAO.deleteMethodIfOrphan(owner, fqn);
+                        }
+
+                        // 4) elimino il file da Mongo e aggiorno i contatori
+                        int removedLines = oldFile.getLines();
+                        mongoFileRepository.deleteById(id);
+                        linesDeleted += removedLines;
+                        filesModified++;
+                        break;
+
+                    default:
+                        throw new RuntimeException("Unsupported action: " + change.getAction());
+                }
+            }
+
+            // 4) registra un nuovo Commit
+            Commit commit = new Commit();
+            commit.setAuthor(username);
+            commit.setFilesModified(filesModified);
+            commit.setLinesAdded(linesAdded);
+            commit.setLinesDeleted(linesDeleted);
+            commit.setTimestamp(Instant.now());
+            mongoCommitRepository.save(commit);
+
+            session.commitTransaction();
+            return project;
+
+        } catch (Exception e) {
+            session.abortTransaction();
+            throw new RuntimeException("Commit failed: " + e.getMessage(), e);
+        } finally {
+            session.close();
+        }
+    }
+
+    // todo finish update project
+    public ProjectDTO updateProject(CommitOwnerDTO commitOwnerDTOt, String username) {
+        ClientSession session = mongoClient.startSession();
+        try {
+            session.startTransaction();
+
+            String owner = commitOwnerDTOt.getOwner();
+            String projectName = commitOwnerDTOt.getProjectName();
+
+            // 1) prendi il progetto e controlla che esista e che l’utente sia admin
+            ProjectDTO project = mongoProjectRepository.findByOwnerAndName(owner, projectName)
+                    .orElseThrow(() -> new RuntimeException("Project not found"));
+
+            String projectId = project.getId();
+
+            if (!project.getAdministrators().contains(username)) {
+                throw new RuntimeException("Forbidden: not an administrator");
+            }
+
+            // 2) applica le modifiche ai file
+            List<FileWrapperDTO> changes = commitOwnerDTOt.getFiles();
+            int linesAdded = 0, linesDeleted = 0, filesModified = 0;
+
+            for (FileWrapperDTO change : changes) {
+                File oldFile;
+                String id;
+                File file = change.getFile();
+
+                // set modified timestamp
+                file.setLastModified(Instant.now());
+
+                // set who modified last modified the file
+                file.setLastModifiedBy(username);
+
+
+                String path = file.getPath();
+                switch (change.getAction()) {
+
+                    case "POST":
+                        // 1) salvataggio Mongo
+                        if (mongoFileRepository
+                                .findByOwnerAndProjectNameAndPath(owner, projectName, path)
+                                .isPresent()) {
+                            throw new RuntimeException("File " + path + " already exists");
+                        }
+                        mongoFileRepository.save(file);
+                        filesModified++;
+                        linesAdded += file.getContent().split("\r?\n").length;
+
+                        // 2) aggiorna Neo4j tramite DAO
+                        // 2.1 nodi
+                        neo4jDAO.mergeUser(owner);
+                        neo4jDAO.mergeProject(projectId, projectName);
+                        neo4jDAO.relateUserToProject(owner, projectId);
+
+                        // 2.2 metodi e HAS_METHOD
+                        String content = file.getContent();
+                        CompilationUnit cu = StaticJavaParser.parse(content);
+                        for (MethodDeclaration md : cu.findAll(MethodDeclaration.class)) {
+                            ResolvedMethodDeclaration rmd = md.resolve();
+                            String fqn        = rmd.getQualifiedSignature();
+                            String simpleName = rmd.getName();
+
+                            neo4jDAO.mergeMethod(owner, fqn, simpleName);
+                            neo4jDAO.relateProjectToMethod(projectId, owner, fqn);
+                        }
+
+                        // CALLS
+                        for (MethodDeclaration md : cu.findAll(MethodDeclaration.class)) {
+                            String callerFqn = md.resolve().getQualifiedSignature();
+                            for (MethodCallExpr call : md.findAll(MethodCallExpr.class)) {
+                                String calleeFqn = call.resolve().getQualifiedSignature();
+                                neo4jDAO.relateMethodsCall(owner, callerFqn, calleeFqn);
+                            }
+                        }
+
+                        // 2.4 dipendenze dinamiche tra progetti
+                        cu.getPackageDeclaration().ifPresent(pd -> {
+                            String pkg     = pd.getNameAsString();
+                            String depProj = extractProjectFromPackage(pkg);
+                            if (!depProj.equals(projectName)) {
+                                neo4jDAO.relateProjectDependency(projectId, depProj);
+                            }
+                        });
+
+                        break;
+
+                    case "PUT":
+                        // 1) verifica che il file esista
+                        oldFile = mongoFileRepository.findByOwnerAndProjectNameAndPath(owner, projectName, path)
+                                .orElseThrow(() -> new RuntimeException("File " + path + " not found"));
+                        id = oldFile.getId();
+
+                        // 2) prendi il vecchio contenuto
+                        List<String> originalLines = Arrays.asList(oldFile.getContent()
+                                .split("\\r?\\n", -1));
+
+                        // 3) prepara il nuovo contenuto
+                        List<String> newLines = Arrays.asList(file.getContent()
+                                .split("\\r?\\n", -1));
+
+                        // 4) calcola patch e conta righe
+                        Patch<String> patch = DiffUtils.diff(originalLines, newLines);
+                        for (AbstractDelta<String> delta : patch.getDeltas()) {
+                            switch (delta.getType()) {
+                                case INSERT: linesAdded   += delta.getTarget().size(); break;
+                                case DELETE: linesDeleted += delta.getSource().size(); break;
+                                case CHANGE:
+                                    linesDeleted += delta.getSource().size();
+                                    linesAdded   += delta.getTarget().size();
+                                    break;
+                            }
+                        }
+
+                        // 5) aggiorna il file in Mongo
+                        mongoFileRepository.updateById(id, file);
+
+                        // estraggo FQN dei metodi dal vecchio file
+                        CompilationUnit oldCu = StaticJavaParser.parse(oldFile.getContent());
+                        Set<String> oldMethods = oldCu.findAll(MethodDeclaration.class).stream()
+                                .map(md -> md.resolve().getQualifiedSignature())
+                                .collect(Collectors.toSet());
+
+                        // estraggo FQN e simpleName dei metodi dal nuovo file
+                        String newContent = file.getContent();
+                        CompilationUnit newCu = StaticJavaParser.parse(newContent);
+                        Map<String,String> newMethods = newCu.findAll(MethodDeclaration.class).stream()
+                                .collect(Collectors.toMap(
+                                        md -> md.resolve().getQualifiedSignature(),
+                                        md -> md.getName(),
+                                        (a,b)->a  // in caso di duplicati improbabili
+                                ));
+
+                        // 6) rimuovo i metodi ora spariti
+                        for (String removedFqn : Sets.difference(oldMethods, newMethods.keySet())) {
+                            neo4jDAO.removeProjectToMethod(projectId, owner, removedFqn);
+                            // cancella metodo se orfano
+                            neo4jDAO.deleteMethodIfOrphan(owner, removedFqn);
+                        }
+
+                        // 7) aggiungo i metodi nuovi
+                        for (Map.Entry<String,String> entry : Sets.difference(newMethods.keySet(), oldMethods).stream()
+                                .map(fqn -> Map.entry(fqn, newMethods.get(fqn)))
+                                .collect(Collectors.toList())) {
+                            String fqn        = entry.getKey();
+                            String simpleName = entry.getValue();
+                            neo4jDAO.mergeMethod(owner, fqn, simpleName);
+                            neo4jDAO.relateProjectToMethod(projectId, owner, fqn);
+                        }
+
+                        // 8) aggiorno tutte le CALLS per i metodi rimasti (intersezione)
+                        Set<String> retained = Sets.intersection(oldMethods, newMethods.keySet());
+                        for (String callerFqn : retained) {
+                            // cancello vecchie relazioni CALLS
+                            neo4jDAO.clearMethodCalls(owner, callerFqn);
+
+                            // ristampo le chiamate dal nuovo AST
+                            newCu.findAll(MethodDeclaration.class).stream()
+                                    .filter(md -> md.resolve().getQualifiedSignature().equals(callerFqn))
+                                    .flatMap(md -> md.findAll(MethodCallExpr.class).stream())
+                                    .map(call -> call.resolve().getQualifiedSignature())
+                                    .forEach(calleeFqn ->
+                                            neo4jDAO.relateMethodsCall(owner, callerFqn, calleeFqn)
+                                    );
+                        }
+
+                        filesModified++;
+                        break;
+
+                    case "DELETE":
+                        // 1) verifica che il file esista
+                        oldFile = mongoFileRepository.findByOwnerAndProjectNameAndPath(owner, projectName, path)
+                                .orElseThrow(() -> new RuntimeException("File " + path + " not found"));
+                        id = oldFile.getId();
+
+                        // 2) estrazione metodi
+                        CompilationUnit oldCuDel = StaticJavaParser.parse(oldFile.getContent());
+                        Set<String> methodsToRemove = oldCuDel.findAll(MethodDeclaration.class).stream()
+                                .map(md -> md.resolve().getQualifiedSignature())
+                                .collect(Collectors.toSet());
+
+                        // 3) eliminazione relazioni e metodi
+                        for (String fqn : methodsToRemove) {
+                            neo4jDAO.removeProjectToMethod(projectId, owner, fqn);
+                            neo4jDAO.deleteMethodIfOrphan(owner, fqn);
+                        }
+
+                        // 4) elimino il file da Mongo e aggiorno i contatori
+                        int removedLines = oldFile.getLines();
+                        mongoFileRepository.deleteById(id);
+                        linesDeleted += removedLines;
+                        filesModified++;
+                        break;
+
+                    default:
+                        throw new RuntimeException("Unsupported action: " + change.getAction());
+                }
+            }
+
+            // 4) registra un nuovo Commit
+            Commit commit = new Commit();
+            commit.setAuthor(username);
+            commit.setFilesModified(filesModified);
+            commit.setLinesAdded(linesAdded);
+            commit.setLinesDeleted(linesDeleted);
+            commit.setTimestamp(Instant.now());
+            mongoCommitRepository.save(commit);
+
+            session.commitTransaction();
+            return project;
+
+        } catch (Exception e) {
+            session.abortTransaction();
+            throw new RuntimeException("Commit failed: " + e.getMessage(), e);
+        } finally {
+            session.close();
+        }
+    }
+
+    private String extractProjectFromPackage(String pkg) {
+        String[] parts = pkg.split("\\.");
+        return parts.length >= 3 ? parts[2] : parts[1];
+    }
+
+
 }

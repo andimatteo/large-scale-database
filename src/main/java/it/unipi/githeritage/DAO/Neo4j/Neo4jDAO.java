@@ -1,13 +1,11 @@
 package it.unipi.githeritage.DAO.Neo4j;
 
-
+import it.unipi.githeritage.DTO.ProjectDTO;
 import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.stereotype.Repository;
 
-import it.unipi.githeritage.DTO.ProjectDTO;
-import it.unipi.githeritage.DTO.UserDTO;
-
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Repository
@@ -21,7 +19,7 @@ public class Neo4jDAO {
 
     public List<String> firstLevelDependencies(String projectId) {
         String cypher = """
-            MATCH (p:Project {id: })-[:DEPENDS_ON]->(d:Project)
+            MATCH (p:Project {id: $projectId})-[:DEPENDS_ON]->(d:Project)
             RETURN d.id AS depId
             """;
         return client.query(cypher)
@@ -34,12 +32,13 @@ public class Neo4jDAO {
 
     public List<String> recursiveDependencies(String projectId) {
         String cypher = """
-            MATCH (p:Project {id: })-[:DEPENDS_ON*]->(d:Project)
+            MATCH (p:Project {id: $projectId})-[:DEPENDS_ON*]->(d:Project)
             RETURN DISTINCT d.id AS depId
-            LIMIT 200
+            LIMIT $limit
             """;
         return client.query(cypher)
                 .bind(projectId).to("projectId")
+                .bind(200).to("limit")
                 .fetch().all()
                 .stream()
                 .map(m -> (String) m.get("depId"))
@@ -48,12 +47,11 @@ public class Neo4jDAO {
 
     public List<String> recursiveDependenciesPaginated(String projectId, int page) {
         String cypher = """
-            MATCH (p:Project {id: })-[:DEPENDS_ON*1..]->(d:Project)
+            MATCH (p:Project {id: $projectId})-[:DEPENDS_ON*1..]->(d:Project)
             RETURN DISTINCT d.id AS dependencyId
-            SKIP 
-            LIMIT 
+            SKIP $skip
+            LIMIT $limit
             """;
-
         return client.query(cypher)
                 .bind(projectId).to("projectId")
                 .bind(page * PAGE_SIZE).to("skip")
@@ -66,12 +64,13 @@ public class Neo4jDAO {
 
     public List<String> projectMethods(String projectId) {
         String cypher = """
-            MATCH (p:Project {id: })-[:HAS_METHOD]->(m:Method)
-            RETURN m.signature AS sig
-            LIMIT 200
+            MATCH (p:Project {id: $projectId})-[:HAS_METHOD]->(m:Method)
+            RETURN m.fullyQualifiedName AS sig
+            LIMIT $limit
             """;
         return client.query(cypher)
                 .bind(projectId).to("projectId")
+                .bind(200).to("limit")
                 .fetch().all()
                 .stream()
                 .map(m -> (String) m.get("sig"))
@@ -80,87 +79,152 @@ public class Neo4jDAO {
 
     public List<String> projectMethodsPaginated(String projectId, int page) {
         String cypher = """
-            MATCH (p:Project {id: })-[:HAS_METHOD]->(m:Method)
-            RETURN m.signature AS sig
-            SKIP 
-            LIMIT 200
+            MATCH (p:Project {id: $projectId})-[:HAS_METHOD]->(m:Method)
+            RETURN m.fullyQualifiedName AS sig
+            SKIP $skip
+            LIMIT $limit
             """;
         return client.query(cypher)
                 .bind(projectId).to("projectId")
                 .bind(page * PAGE_SIZE).to("skip")
+                .bind(PAGE_SIZE).to("limit")
                 .fetch().all()
                 .stream()
                 .map(m -> (String) m.get("sig"))
                 .collect(Collectors.toList());
     }
 
-    public void addProject(ProjectDTO projectDTO) {
-        String cypher = """
-            CREATE (p:Project {id: $id, name: $name})
-            """;
-        
-        client.query(cypher)
-                .bind(projectDTO.getId()).to("id")
-                .bind(projectDTO.getName()).to("name")
+    public void mergeUser(String username) {
+        client.query("MERGE (u:User {username: $username})")
+                .bind(username).to("username")
                 .run();
-        
+    }
+
+    public void mergeProject(String projectId, String name) {
+        client.query("MERGE (p:Project {id: $id, name: $name})")
+                .bind(projectId).to("id")
+                .bind(name).to("name")
+                .run();
+    }
+
+    public void relateUserToProject(String username, String projectId) {
+        client.query("""
+            MATCH (u:User {username: $username}), (p:Project {id: $projectId})
+            MERGE (u)-[:COLLABORATES_ON]->(p)
+            """)
+                .bind(username).to("username")
+                .bind(projectId).to("projectId")
+                .run();
+    }
+
+    public void mergeMethod(String owner, String fqn, String methodName) {
+        client.query("""
+            MERGE (m:Method {owner: $owner, fullyQualifiedName: $fqn})
+            ON CREATE SET m.methodName = $methodName
+            """)
+                .bind(owner).to("owner")
+                .bind(fqn).to("fqn")
+                .bind(methodName).to("methodName")
+                .run();
+    }
+
+    public void relateProjectToMethod(String projectId, String owner, String fqn) {
+        client.query("""
+            MATCH (p:Project {id: $projectId}), (m:Method {owner: $owner, fullyQualifiedName: $fqn})
+            MERGE (p)-[:HAS_METHOD]->(m)
+            """)
+                .bind(projectId).to("projectId")
+                .bind(owner).to("owner")
+                .bind(fqn).to("fqn")
+                .run();
+    }
+
+    public void removeProjectToMethod(String projectId, String owner, String fqn) {
+        client.query("""
+        MATCH (p:Project {id: $projectId})-[r:HAS_METHOD]->(m:Method {owner: $owner, fullyQualifiedName: $fqn})
+        DELETE r
+        """)
+                .bind(projectId).to("projectId")
+                .bind(owner).to("owner")
+                .bind(fqn).to("fqn")
+                .run();
+    }
+
+    public void relateMethodsCall(String owner, String callerFqn, String calleeFqn) {
+        client.query("""
+            MATCH (m1:Method {owner: $owner, fullyQualifiedName: $caller}),
+                  (m2:Method {owner: $owner, fullyQualifiedName: $callee})
+            MERGE (m1)-[:CALLS]->(m2)
+            """)
+                .bind(owner).to("owner")
+                .bind(callerFqn).to("caller")
+                .bind(calleeFqn).to("callee")
+                .run();
+    }
+
+    public void clearMethodCalls(String owner, String callerFqn) {
+        client.query("""
+        MATCH (m:Method {owner: $owner, fullyQualifiedName: $caller})-[r:CALLS]->()
+        DELETE r
+        """)
+                .bind(owner).to("owner")
+                .bind(callerFqn).to("caller")
+                .run();
+    }
+
+    public void deleteMethodIfOrphan(String owner, String fqn) {
+        client.query("""
+        MATCH (m:Method {owner: $owner, fullyQualifiedName: $fqn})
+        WHERE NOT (m)<-[:HAS_METHOD]-()
+          AND NOT (m)-[:CALLS]->()
+          AND NOT (m)<-[:CALLS]-()
+        DETACH DELETE m
+        """)
+                .bind(owner).to("owner")
+                .bind(fqn).to("fqn")
+                .run();
+    }
+
+    public void relateProjectDependency(String projectId, String depProjectId) {
+        client.query("""
+            MATCH (p1:Project {id: $projectId}), (p2:Project {id: $depProjectId})
+            MERGE (p1)-[:DEPENDS_ON]->(p2)
+            """)
+                .bind(projectId).to("projectId")
+                .bind(depProjectId).to("depProjectId")
+                .run();
+    }
+
+    public void addProject(ProjectDTO projectDTO) {
+        mergeProject(projectDTO.getId(), projectDTO.getName());
         if (projectDTO.getOwner() != null) {
-            String relCypher = """
-                MATCH (p:Project {id: $projectId}), (u:User {username: $username})
-                MERGE (u)-[:COLLABORATES_ON]->(p)
-                """;
-            System.out.println("Adding project ownership relationship for user: " + projectDTO);
-            client.query(relCypher)
-                    .bind(projectDTO.getId()).to("projectId")
-                    .bind(projectDTO.getOwner()).to("username")
-                    .run();
+            mergeUser(projectDTO.getOwner());
+            relateUserToProject(projectDTO.getOwner(), projectDTO.getId());
         }
     }
 
-    // update project name
-    public void updateProject(ProjectDTO projectDTO) {
-        String cypher = """
-            MATCH (p:Project {id: $id})
-            SET p.name = $name
-            """;
-        
-        client.query(cypher)
-                .bind(projectDTO.getId()).to("id")
-                .bind(projectDTO.getName()).to("name")
-                .run();
-    }
-    
-    public void addUser(UserDTO user) {
-        String cypher = """
-            CREATE (u:User {username: $username})
-            """;
-    
-        client.query(cypher)
-                .bind(user.getUsername()).to("username")
-                .run();
-    }
-
     public void followUser(String followerUsername, String followedUsername) {
-        String cypher = """
-            MATCH (follower:User {username: $followerUsername}), (followed:User {username: $followedUsername})
-            MERGE (follower)-[:FOLLOWS]->(followed)
-            """;
-        
-        client.query(cypher)
-                .bind(followerUsername).to("followerUsername")
-                .bind(followedUsername).to("followedUsername")
+        // garantisco l’esistenza dei due nodi
+        mergeUser(followerUsername);
+        mergeUser(followedUsername);
+        client.query("""
+            MATCH (f:User {username: $follower}), (t:User {username: $followed})
+            MERGE (f)-[:FOLLOWS]->(t)
+            """)
+                .bind(followerUsername).to("follower")
+                .bind(followedUsername).to("followed")
                 .run();
     }
 
     public void unfollowUser(String followerUsername, String followedUsername) {
-        String cypher = """
-            MATCH (follower:User {username: $followerUsername})-[r:FOLLOWS]->(followed:User {username: $followedUsername})
+        client.query("""
+            MATCH (f:User {username: $follower})-[r:FOLLOWS]->(t:User {username: $followed})
             DELETE r
-            """;
-        
-        client.query(cypher)
-                .bind(followerUsername).to("followerUsername")
-                .bind(followedUsername).to("followedUsername")
+            """)
+                .bind(followerUsername).to("follower")
+                .bind(followedUsername).to("followed")
                 .run();
     }
+
+
 }

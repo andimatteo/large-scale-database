@@ -1,16 +1,11 @@
 package it.unipi.githeritage.Service;
 
-import com.mongodb.client.ClientSession;
 import com.mongodb.client.MongoClient;
 import it.unipi.githeritage.DAO.MongoDB.FileMongoDAO;
-import it.unipi.githeritage.DTO.FileContentDTO;
-import it.unipi.githeritage.DTO.ProjectDTO;
 import it.unipi.githeritage.Model.MongoDB.File;
 import it.unipi.githeritage.Repository.MongoDB.MongoFileRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
-import java.util.Optional;
 
 @Service
 public class FileService {
@@ -31,12 +26,6 @@ public class FileService {
 
     public File getFile(String username, String projectName, String path) {
         return mongoFileRepository.findByOwnerAndProjectNameAndPath(username,projectName,path)
-                .orElse(null);
-    }
-
-    public FileContentDTO getFileContent(String id) {
-        return mongoFileRepository.findById(id)
-                .map(f -> new FileContentDTO(f.getContent()))
                 .orElse(null);
     }
 

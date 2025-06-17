@@ -15,6 +15,9 @@ public class Project {
     private String id;
     private String name;
 
+    @Relationship(type="COLLABORATES_ON", direction=Relationship.Direction.INCOMING)
+    private Set<User> collaborators;
+
     // Outgoing "HAS_METHOD" relationship: methods used in this project
     @Relationship(type = "HAS_METHOD", direction = Relationship.Direction.OUTGOING)
     private Set<Method> methods;
