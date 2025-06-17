@@ -158,9 +158,42 @@ public class UserController {
 
     // DELETE /api/user/file/{id} : delete file by id
 
+    @DeleteMapping("/file/{id}")
+    public ResponseEntity<ResponseDTO<?>> deleteFile(@PathVariable String id) {
+        try {
+            // Get the authenticated user from security context
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
+            String authenticatedUsername = authenticatedUser.getUsername();
+
+            // Call the service to delete the file
+            fileService.deleteFile(id, authenticatedUsername);
+            return ResponseEntity.ok(new ResponseDTO<>(true, "File deleted successfully", null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false, "Error deleting file: " + e.getMessage(), null));
+        }
+    }
+
     // DELETE /api/user/file : delete file by projectId and path
     // query parameters: projectId and path
 
+    @DeleteMapping("/file")
+    public ResponseEntity<ResponseDTO<?>> deleteFileByProjectAndPath(@RequestParam String projectId, @RequestParam String path) {
+        try {
+            // Get the authenticated user from security context
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
+            String authenticatedUsername = authenticatedUser.getUsername();
+
+            // Call the service to delete the file by projectId and path
+            fileService.deleteFile(projectId, path, authenticatedUsername);
+            return ResponseEntity.ok(new ResponseDTO<>(true, "File deleted successfully", null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false, "Error deleting file: " + e.getMessage(), null));
+        }
+    }
     // POST /api/user/follow : follow a user
     // query parameters: username to follow
 

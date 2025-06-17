@@ -109,6 +109,92 @@ public class FileService {
         }
     }
 
+    public void deleteFile(String fileId, String authenticatedUsername) {
+        ClientSession session = mongoClient.startSession();
+        try {
+            session.startTransaction();
+
+            // First, get the existing file to check project ownership
+            FileDTO existingFile = getFileMetadata(fileId);
+            if (existingFile == null) {
+                throw new RuntimeException("File not found with id: " + fileId);
+            }
+
+            // Validate project ownership
+            ProjectDTO project = projectService.getProjectById(existingFile.getProjectId());
+            if (project == null) {
+                throw new RuntimeException("Project not found with id: " + existingFile.getProjectId());
+            }
+
+            if (!project.getAdministrators().contains(authenticatedUsername)) {
+                throw new RuntimeException("User is not authorized to delete files in this project.");
+            }
+
+            // Delete the file
+            fileMongoDAO.deleteFile(fileId);
+
+            // TODO delete also methods and also in neo4j
+
+            // Remove file ID from project
+            if (project.getFileIds() != null) {
+                project.getFileIds().remove(fileId);
+                projectService.updateProject(project, authenticatedUsername);
+            }
+
+            session.commitTransaction();
+
+        } catch (Exception e) {
+            session.abortTransaction();
+            throw new RuntimeException("Failed to delete file: " + e.getMessage(), e);
+        } finally {
+            session.close();
+        }
+    }
+
+    public void deleteFile(String projectId, String path, String authenticatedUsername) {
+        ClientSession session = mongoClient.startSession();
+        try {
+            session.startTransaction();
+
+            // Find the file by projectId and path
+            Optional<FileDTO> fileOpt = findByProjectIdAndPath(projectId, path);
+            if (fileOpt.isEmpty()) {
+                throw new RuntimeException("File not found with projectId: " + projectId + " and path: " + path);
+            }
+
+            FileDTO existingFile = fileOpt.get();
+
+            // Validate project ownership
+            ProjectDTO project = projectService.getProjectById(projectId);
+            if (project == null) {
+                throw new RuntimeException("Project not found with id: " + projectId);
+            }
+
+            if (!project.getAdministrators().contains(authenticatedUsername)) {
+                throw new RuntimeException("User is not authorized to delete files in this project.");
+            }
+
+            // Delete the file
+            fileMongoDAO.deleteFile(existingFile.getId());
+
+            // TODO delete also methods and also in neo4j
+
+            // Remove file ID from project
+            if (project.getFileIds() != null) {
+                project.getFileIds().remove(existingFile.getId());
+                projectService.updateProject(project, authenticatedUsername);
+            }
+
+            session.commitTransaction();
+
+        } catch (Exception e) {
+            session.abortTransaction();
+            throw new RuntimeException("Failed to delete file: " + e.getMessage(), e);
+        } finally {
+            session.close();
+        }
+    }
+
     private FileDTO mapToDTO(File f) {
         FileDTO dto = new FileDTO();
         dto.setId(f.getId());

@@ -49,4 +49,11 @@ public class FileMongoDAO {
         File updatedFile = mongoFileRepository.save(existingFile);
         return FileDTO.fromEntity(updatedFile);
     }
+
+    public void deleteFile(String fileId) {
+        if (!mongoFileRepository.existsById(fileId)) {
+            throw new RuntimeException("File not found with id: " + fileId);
+        }
+        mongoFileRepository.deleteById(fileId);
+    }
 }
