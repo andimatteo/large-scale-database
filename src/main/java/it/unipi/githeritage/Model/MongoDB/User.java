@@ -24,7 +24,6 @@ public class User {
     private String email;
     private String name;
     private String surname;
-    private String nationality;
     private Integer followerNumber;
     private Integer followingNumber;
     private List<String> comments;
@@ -39,7 +38,6 @@ public class User {
         user.setEmail(userDTO.getEmail());
         user.setName(userDTO.getName());
         user.setSurname(userDTO.getSurname());
-        user.setNationality(userDTO.getNationality());
         user.setFollowerNumber(userDTO.getFollowerNumber());
         user.setFollowingNumber(userDTO.getFollowingNumber());
         user.setProjects(userDTO.getProjects());

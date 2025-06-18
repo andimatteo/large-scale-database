@@ -279,7 +279,7 @@ public class GuestController {
     }
 
     // GET /api/guest/follows?username=username : get all followed by user
-    @GetMapping("/follows")
+    @GetMapping("/follows/{username}")
     public ResponseEntity<ResponseDTO<List<String>>> getFollows(@PathVariable String username) {
         try {
             return ResponseEntity.status(HttpStatus.OK)

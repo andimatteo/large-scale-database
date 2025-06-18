@@ -1,9 +1,11 @@
 package it.unipi.githeritage.Service;
 
 import it.unipi.githeritage.DTO.PathDTO;
+import it.unipi.githeritage.DTO.UserMetadataDTO;
 import it.unipi.githeritage.Repository.MongoDB.MongoUserRepository;
 import it.unipi.githeritage.Repository.Neo4j.NeoUserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 
@@ -13,7 +15,6 @@ import com.mongodb.client.MongoClient;
 import it.unipi.githeritage.DAO.MongoDB.UserMongoDAO;
 import it.unipi.githeritage.DAO.Neo4j.Neo4jDAO;
 import it.unipi.githeritage.DTO.UserDTO;
-import it.unipi.githeritage.Model.MongoDB.User;
 import lombok.AllArgsConstructor;
 
 import java.util.List;
@@ -38,7 +39,8 @@ public class UserService {
 
     public UserDTO addUser(UserDTO userDTO) {
         ClientSession session = mongoClient.startSession();
-        Boolean neo4j = false;
+        // todo vedere cosa fare con questa variabile neo4j
+        Boolean neo = false;
         try {
             System.out.println("Starting transaction to add user: " + userDTO.getUsername());
             session.startTransaction();
@@ -50,12 +52,16 @@ public class UserService {
 
             // Save the user in Neo4j
             neo4jDAO.mergeUser(userDTO.getUsername());
-            neo4j = true;
+            neo = true;
             session.commitTransaction();
 
             return addedUser;
         } catch (Exception e) {
             session.abortTransaction();
+            if (neo) {
+                throw new RuntimeException("Error adding data to moongoDB but Neo4j data added," +
+                        "check for consistency: " + userDTO.getUsername());
+            }
             return null; // Return null or handle the error appropriately
         } finally {
             session.close();
@@ -146,6 +152,19 @@ public class UserService {
 
     public List<it.unipi.githeritage.Model.Neo4j.User> discoverPeople(String username) {
         return neoUserRepository.findSuggestedPeople(username);
+    }
+
+    // get 200 users
+    public List<UserMetadataDTO> getAllUserMetadata() {
+        return mongoUserRepository.findTop100ByOrderByUsernameAsc()
+                .orElse(null);
+    }
+
+    // get 200 users
+    public List<UserMetadataDTO> getAllUsersMetadataPaginated(int pageIndex) {
+        return mongoUserRepository
+                .findAllOrderByUsername(PageRequest.of(pageIndex, 50))
+                .getContent();  // prendi solo la lista interna
     }
 
 

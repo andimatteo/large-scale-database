@@ -26,8 +26,8 @@ public class UserController {
     @Autowired
     private UserService userService;
 
-    @Autowired
-    private FileService fileService;
+//    @Autowired
+//    private FileService fileService;
 
     @Autowired
     private ProjectService projectService;
@@ -52,7 +52,12 @@ public class UserController {
             //System.out.println("Authenticated user: " + authenticatedUser);
             String authenticatedUsername = authenticatedUser.getUsername();
 
-            // todo if not logged then raise error
+            // todo add admin can do this operation on all users
+
+            if (authenticatedUsername == null) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ResponseDTO<>(false, "Not logged in", null));
+            }
             
             userDTO.setUsername(authenticatedUsername);
             userDTO.setIsAdmin(null); // Ensure isAdmin is not modified
@@ -73,12 +78,14 @@ public class UserController {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
             String authenticatedUsername = authenticatedUser.getUsername();
-            // todo if not logged then raise error
-            UserDTO dto = null;
-            if (authenticatedUsername != null) {
-                // delete user
-                dto = userService.deleteUser(authenticatedUsername);
+
+            // todo add admin can do this operation on all users
+
+            if (authenticatedUsername == null) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ResponseDTO<>(false, "Not logged in", null));
             }
+            UserDTO dto = userService.deleteUser(authenticatedUsername);
             return ResponseEntity.ok(new ResponseDTO<>(true, "User deleted successfully", dto));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -103,7 +110,11 @@ public class UserController {
             //System.out.println("Authenticated user: " + authenticatedUser);
             String authenticatedUsername = authenticatedUser.getUsername();
 
-            // todo if not logged then raise error
+
+            if (authenticatedUsername == null) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ResponseDTO<>(false, "Not logged in", null));
+            }
 
             // prevent setting of _id
             projectDTO.setId(null);
@@ -140,7 +151,7 @@ public class UserController {
     // todo: quando modifico file e creo methods vanno aggiornati tutti i methods verso cui creo un arco e cosi' via...
     // PUT /api/user/project/{project-id} : update project
     // body: CommitIdDTO
-    @PutMapping("/project/{project-id}")
+    @PutMapping("/project/{projectId}")
     public ResponseEntity<ResponseDTO<?>> updateProject(
             @PathVariable String projectId, @RequestBody CommitIdDTO commitIdDTO
     ) {
@@ -150,10 +161,16 @@ public class UserController {
             CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
 
             String authenticatedUsername = authenticatedUser.getUsername();
-            // todo if not logged then raise error
+
+            if (authenticatedUsername == null) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ResponseDTO<>(false, "Not logged in", null));
+            }
+
+            // todo add admin can do this operation
 
             // Call the service to update the project
-            Project updatedProject = projectService.updateProject(commitIdDTO, authenticatedUsername);
+            Project updatedProject = projectService.updateProject(projectId, commitIdDTO, authenticatedUsername);
             return ResponseEntity.ok(new ResponseDTO<>(true, "Project updated successfully", updatedProject));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -174,7 +191,11 @@ public class UserController {
             CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
 
             String authenticatedUsername = authenticatedUser.getUsername();
-            // todo if not logged then raise error
+
+            if (authenticatedUsername == null) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ResponseDTO<>(false, "Not logged in", null));
+            }
 
             // Call the service to update the project
             ProjectDTO updatedProject = projectService.updateProject(commitOwnerDTO, authenticatedUsername);
@@ -196,7 +217,11 @@ public class UserController {
             CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
             //System.out.println("Authenticated user: " + authenticatedUser);
             String username = authenticatedUser.getUsername();
-            // todo if not logged then raise error
+
+            if (username == null) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ResponseDTO<>(false, "Not logged in", null));
+            }
 
             // Call the service to update the project
             ProjectDTO deletedProject = projectService.deleteProject(projectId, username);
@@ -219,7 +244,11 @@ public class UserController {
             CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
             //System.out.println("Authenticated user: " + authenticatedUser);
             String authenticatedUsername = authenticatedUser.getUsername();
-            // todo if not logged then raise error
+
+            if (authenticatedUsername == null) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ResponseDTO<>(false, "Not logged in", null));
+            }
 
             // Call the service to update the project
             ProjectDTO deletedProject = projectService.deleteProject(owner, projectName, authenticatedUsername);
@@ -335,7 +364,11 @@ public class UserController {
             CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
             //System.out.println("Authenticated user: " + authenticatedUser);
             String authenticatedUsername = authenticatedUser.getUsername();
-            // todo if not logged then raise error
+
+            if (authenticatedUsername == null) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ResponseDTO<>(false, "Not logged in", null));
+            }
 
             // Call the service to follow the user
             userService.followUser(authenticatedUsername, username);
@@ -354,7 +387,11 @@ public class UserController {
             CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
             //System.out.println("Authenticated user: " + authenticatedUser);
             String authenticatedUsername = authenticatedUser.getUsername();
-            // todo if not logged then raise error
+
+            if (authenticatedUsername == null) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ResponseDTO<>(false, "Not logged in", null));
+            }
 
             // Call the service to unfollow the user
             userService.unfollowUser(authenticatedUsername, username);
@@ -374,7 +411,11 @@ public class UserController {
             CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
             //System.out.println("Authenticated user: " + authenticatedUser);
             String authenticatedUsername = authenticatedUser.getUsername();
-            // todo if not logged then raise error
+
+            if (authenticatedUsername == null) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ResponseDTO<>(false, "Not logged in", null));
+            }
 
             PathDTO pathDTO = userService.getFollowPath(authenticatedUsername, username);
             String msg = pathDTO.getDistance() < 0
@@ -397,8 +438,11 @@ public class UserController {
             CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
             //System.out.println("Authenticated user: " + authenticatedUser);
             String authenticatedUsername = authenticatedUser.getUsername();
-            // todo if not logged then raise error
 
+            if (authenticatedUsername == null) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ResponseDTO<>(false, "Not logged in", null));
+            }
 
             PathDTO pathDTO = userService.getFollowPath(username1, username2);
             String msg = pathDTO.getDistance() < 0
@@ -420,7 +464,11 @@ public class UserController {
             CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
             //System.out.println("Authenticated user: " + authenticatedUser);
             String authenticatedUsername = authenticatedUser.getUsername();
-            // todo if not logged then raise error
+
+            if (authenticatedUsername == null) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ResponseDTO<>(false, "Not logged in", null));
+            }
 
             PathDTO pathDTO = userService.getProjectPath(authenticatedUsername, username);
             String msg = pathDTO.getDistance() < 0
@@ -443,8 +491,11 @@ public class UserController {
             CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
             //System.out.println("Authenticated user: " + authenticatedUser);
             String authenticatedUsername = authenticatedUser.getUsername();
-            // todo if not logged then raise error
 
+            if (authenticatedUsername == null) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ResponseDTO<>(false, "Not logged in", null));
+            }
 
             PathDTO pathDTO = userService.getProjectPath(username1, username2);
             String msg = pathDTO.getDistance() < 0

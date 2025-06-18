@@ -37,7 +37,6 @@ public class UserDTO extends BaseDTO{
         userDTO.setEmail(user.getEmail());
         userDTO.setName(user.getName());
         userDTO.setSurname(user.getSurname());
-        userDTO.setNationality(user.getNationality());
         userDTO.setFollowerNumber(user.getFollowerNumber());
         userDTO.setFollowingNumber(user.getFollowingNumber());
         userDTO.setProjects(user.getProjects());

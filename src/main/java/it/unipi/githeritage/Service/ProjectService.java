@@ -3,9 +3,7 @@ package it.unipi.githeritage.Service;
 import com.google.common.collect.Sets;
 import com.mongodb.client.ClientSession;
 import com.mongodb.client.MongoClient;
-import it.unipi.githeritage.DAO.MongoDB.FileMongoDAO;
 import it.unipi.githeritage.DAO.MongoDB.ProjectMongoDAO;
-import it.unipi.githeritage.DAO.MongoDB.UserMongoDAO;
 import it.unipi.githeritage.DAO.Neo4j.Neo4jDAO;
 import it.unipi.githeritage.DTO.*;
 import it.unipi.githeritage.Model.MongoDB.Commit;
@@ -21,7 +19,6 @@ import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Service;
 import com.github.difflib.DiffUtils;
 import com.github.difflib.patch.AbstractDelta;
@@ -41,16 +38,10 @@ import java.util.stream.Collectors;
 public class ProjectService {
 
     @Autowired
-    private UserMongoDAO userMongoDAO;
-
-    @Autowired
     private final MongoClient mongoClient;
 
     @Autowired
     private final MongoProjectRepository mongoProjectRepository;
-
-    @Autowired
-    private MongoTemplate mongoTemplate;
 
     @Autowired
     private ProjectMongoDAO projectMongoDAO;
@@ -59,13 +50,7 @@ public class ProjectService {
     private Neo4jDAO neo4jDAO;
 
     @Autowired
-    private FileMongoDAO fileMongoDAO;
-
-    @Autowired
     private MongoFileRepository mongoFileRepository;
-
-    @Autowired
-    private MongoClient mongo;
 
     @Autowired
     private MongoCommitRepository mongoCommitRepository;
@@ -86,7 +71,7 @@ public class ProjectService {
             // Save the project in MongoDB first
             
             // Save the project in Neo4j
-            neo4jDAO.addProject(newProject);
+            neo4jDAO.addProject(projectDTO);
 
             session.commitTransaction();
             return newProject;
@@ -202,38 +187,6 @@ public class ProjectService {
         return neo4jDAO.projectMethodsPaginated(projectId, page);
     }
 
-    public ProjectDTO deleteProjectAdmin(String projectId) {
-        // 1) recupera il documento Project da Mongo
-        Project proj = mongoProjectRepository.findById(projectId)
-                .orElseThrow(() -> new RuntimeException("Project not found"));
-
-        String owner       = proj.getOwner();
-        String projectName = proj.getName();
-
-        // 2) Mongo: cancella tutti i file e poi il project
-        mongoFileRepository.deleteByOwnerAndProjectName(owner, projectName);
-        mongoProjectRepository.deleteById(projectId);
-
-        // 3) Neo4j: preleva tutti i metodi collegati al progetto
-        List<String> fqnList = neo4jDAO.projectMethodsById(projectId);
-
-        // 4) Neo4j: elimina il nodo Project e tutte le relazioni
-        neo4jDAO.deleteProjectNodeById(projectId);
-
-        // 5) Neo4j: per ogni metodo rimuove le CALLS residue e cancella il nodo
-        for (String fqn : fqnList) {
-            neo4jDAO.clearMethodCalls(owner, fqn);
-            neo4jDAO.deleteMethodIfOrphan(owner, fqn);
-        }
-
-        // 6) costruisci e ritorna il DTO di conferma
-        ProjectDTO dto = new ProjectDTO();
-        dto.setId(projectId);
-        dto.setOwner(owner);
-        dto.setName(projectName);
-        return dto;
-    }
-
     public ProjectDTO deleteProject(String projectId, String authenticatedUser) {
         // 1) prendo document da Mongo
         Project project = mongoProjectRepository.findById(projectId)
@@ -300,12 +253,11 @@ public class ProjectService {
     }
 
     // todo finish update project
-    public Project updateProject(CommitIdDTO commitIdDTO, String username) {
+    public Project updateProject(String projectId, CommitIdDTO commitIdDTO, String username) {
         ClientSession session = mongoClient.startSession();
         try {
             session.startTransaction();
 
-            String projectId = commitIdDTO.getProjectId();
             // 1) prendi il progetto e controlla che esista e che l’utente sia admin
             Project project = mongoProjectRepository.findById(projectId)
                     .orElseThrow(() -> new RuntimeException("Project not found"));
@@ -389,7 +341,7 @@ public class ProjectService {
                         // 1) verifica che il file esista
                         oldFile = mongoFileRepository.findByOwnerAndProjectNameAndPath(owner, projectName, path)
                                 .orElseThrow(() -> new RuntimeException("File " + path + " not found"));
-                        id = oldFile.getId();
+//                        id = oldFile.getId();
 
 
                         // 2) prendi il vecchio contenuto
@@ -668,7 +620,7 @@ public class ProjectService {
                         // 7) aggiungo i metodi nuovi
                         for (Map.Entry<String,String> entry : Sets.difference(newMethods.keySet(), oldMethods).stream()
                                 .map(fqn -> Map.entry(fqn, newMethods.get(fqn)))
-                                .collect(Collectors.toList())) {
+                                .toList()) {
                             String fqn        = entry.getKey();
                             String simpleName = entry.getValue();
                             neo4jDAO.mergeMethod(owner, fqn, simpleName);
@@ -783,7 +735,7 @@ public class ProjectService {
     // get first 100 files
     public List<String> getAllFiles(String owner, String projectName) {
         return mongoFileRepository.findTop100ByOwnerAndProjectNameOrderByPathAsc(owner, projectName)
-                .orElse(null)
+                .orElseThrow()
                 .stream()
                 .map(File::getPath)
                 .collect(Collectors.toList());

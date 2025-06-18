@@ -22,8 +22,8 @@ import java.util.*;
 @Repository
 public class UserMongoDAO {
 
-    @Autowired
-    private MongoClient mongoClient;
+//    @Autowired
+//    private MongoClient mongoClient;
 
     @Autowired
     private MongoUserRepository repo;
@@ -31,8 +31,8 @@ public class UserMongoDAO {
     @Autowired
     private MongoTemplate mongoTemplate;
 
-    @Autowired
-    private MongoUserRepository mongoUserRepository;
+//    @Autowired
+//    private MongoUserRepository mongoUserRepository;
 
     public User addUser(User user) {
         String hashedPassword = BCrypt.hashpw(user.getPassword(), BCrypt.gensalt());
@@ -74,9 +74,6 @@ public class UserMongoDAO {
         if (user.getSurname() != null) {
             update.set("surname", user.getSurname());
         }
-        if (user.getNationality() != null) {
-            update.set("nationality", user.getNationality());
-        }
         // if (user.getFollowerNumber() != null) {
         //     update.set("followerNumber", user.getFollowerNumber());
         // }
@@ -111,10 +108,9 @@ public class UserMongoDAO {
         return editUser(newUser);
     }
 
-
-    public void deleteUser(String userId) {
-        repo.deleteById(userId);
-    }
+//    public void deleteUser(String userId) {
+//        repo.deleteById(userId);
+//    }
 
     public UserDTO getUserByUsername(String username) {
         // TODO: Implement the logic to retrieve a user by username from MongoDB

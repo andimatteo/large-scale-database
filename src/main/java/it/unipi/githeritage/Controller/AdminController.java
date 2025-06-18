@@ -1,31 +1,122 @@
 package it.unipi.githeritage.Controller;
 
+import it.unipi.githeritage.Config.Security.CustomUserDetails;
+import it.unipi.githeritage.DTO.ResponseDTO;
+import it.unipi.githeritage.DTO.UserMetadataDTO;
+import it.unipi.githeritage.Service.UserService;
 import lombok.AllArgsConstructor;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/admin")
 @AllArgsConstructor
 public class AdminController {
 
-    // DELETE /api/admin/user : delete arbitrary user
-    // query parameters: username
+    @Autowired
+    private final UserService userService;
 
-    // DELETE /api/admin/project : delete project
-    // query parameters: projectId
+    // DELETE /api/admin/user/{username} : delete arbitrary user
+//    @DeleteMapping("/user/{username}")
+//    public ResponseEntity<ResponseDTO<UserDTO>> deleteUser(
+//            @PathVariable String username
+//    ) {
+//        try {
+//            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+//            CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
+//            String authenticatedUsername = authenticatedUser.getUsername();
+//
+//            Boolean isAdmin = authenticatedUser.getIsAdmin();
+//            if (!isAdmin) {
+//                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+//                        .body(new ResponseDTO<>(false, "You are not Admin", null));
+//            }
+//
+//            UserDTO dto = null;
+//            if (authenticatedUsername != null) {
+//                dto = userService.deleteUser(username);
+//            }
+//            return ResponseEntity.ok(new ResponseDTO<>(true, "User deleted successfully", dto));
+//        } catch (Exception e) {
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+//                    .body(new ResponseDTO<>(false, "Error deleting user: " + e.getMessage(), null));
+//        }
+//    }
 
-    // PUT /api/adimn/project : update project infos
-    // query parameters: projectDTO
+//    // PUT /api/admin/user/{username} : update arbitrary user
+//    @PutMapping("/user")
+//    public ResponseEntity<ResponseDTO<UserDTO>> updateUser(
+//            @RequestBody UserDTO userDTO
+//    ) {
+//        try {
+//            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+//            CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
+//            String authenticatedUsername = authenticatedUser.getUsername();
+//
+//            Boolean isAdmin = authenticatedUser.getIsAdmin();
+//            if (!isAdmin) {
+//                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+//                        .body(new ResponseDTO<>(false, "You are not Admin", null));
+//            }
+//
+//            UserDTO dto = null;
+//            if (authenticatedUsername != null) {
+//                dto = userService.editUser(userDTO);
+//            }
+//            return ResponseEntity.ok(new ResponseDTO<>(true, "User deleted successfully", dto));
+//        } catch (Exception e) {
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+//                    .body(new ResponseDTO<>(false, "Error deleting user: " + e.getMessage(), null));
+//        }
+//    }
 
-    // DELETE /api/admin/file : delete file
-    // query parameters: projectId, path
+    // GET /api/admin/user/all : get list of all users (max 200)
+    @GetMapping("/user/all")
+    public ResponseEntity<ResponseDTO<List<UserMetadataDTO>>> getAllUsers() {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
+//            String authenticatedUsername = authenticatedUser.getUsername();
 
-    // DELETE /api/admin/file/{fileId} : delete file by Id
+            Boolean isAdmin = authenticatedUser.getIsAdmin();
+            if (!isAdmin) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ResponseDTO<>(false, "You are not Admin", null));
+            }
 
-    // PUT /api/admin/file : update file
-    // query parameters: fileDTO
+            List<UserMetadataDTO> dto = userService.getAllUserMetadata();
+            return ResponseEntity.ok(new ResponseDTO<>(true, "First 200 users", dto));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false, "Error getting user: " + e.getMessage(), null));
+        }
+    }
 
+    // GET /api/admin/user/all/{page} : get list of all users (paginated)
+    @GetMapping("/user/all/{page}")
+    public ResponseEntity<ResponseDTO<List<UserMetadataDTO>>> getAllUsersPaginated(@PathVariable int page) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
+//            String authenticatedUsername = authenticatedUser.getUsername();
 
+            Boolean isAdmin = authenticatedUser.getIsAdmin();
+            if (!isAdmin) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ResponseDTO<>(false, "You are not Admin", null));
+            }
 
+            List<UserMetadataDTO> dto = userService.getAllUsersMetadataPaginated(page);
+            return ResponseEntity.ok(new ResponseDTO<>(true, "Users for page " + page, dto));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false, "Error deleting user: " + e.getMessage(), null));
+        }
+    }
 }
