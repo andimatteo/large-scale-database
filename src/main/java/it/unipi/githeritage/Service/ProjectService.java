@@ -19,11 +19,12 @@ import it.unipi.githeritage.Repository.Neo4j.NeoMethodRepository;
 import it.unipi.githeritage.Repository.Neo4j.NeoProjectRepository;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Service;
 import com.github.difflib.DiffUtils;
 import com.github.difflib.patch.AbstractDelta;
-import com.github.difflib.patch.DeltaType;
 import com.github.difflib.patch.Patch;
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
@@ -201,6 +202,38 @@ public class ProjectService {
         return neo4jDAO.projectMethodsPaginated(projectId, page);
     }
 
+    public ProjectDTO deleteProjectAdmin(String projectId) {
+        // 1) recupera il documento Project da Mongo
+        Project proj = mongoProjectRepository.findById(projectId)
+                .orElseThrow(() -> new RuntimeException("Project not found"));
+
+        String owner       = proj.getOwner();
+        String projectName = proj.getName();
+
+        // 2) Mongo: cancella tutti i file e poi il project
+        mongoFileRepository.deleteByOwnerAndProjectName(owner, projectName);
+        mongoProjectRepository.deleteById(projectId);
+
+        // 3) Neo4j: preleva tutti i metodi collegati al progetto
+        List<String> fqnList = neo4jDAO.projectMethodsById(projectId);
+
+        // 4) Neo4j: elimina il nodo Project e tutte le relazioni
+        neo4jDAO.deleteProjectNodeById(projectId);
+
+        // 5) Neo4j: per ogni metodo rimuove le CALLS residue e cancella il nodo
+        for (String fqn : fqnList) {
+            neo4jDAO.clearMethodCalls(owner, fqn);
+            neo4jDAO.deleteMethodIfOrphan(owner, fqn);
+        }
+
+        // 6) costruisci e ritorna il DTO di conferma
+        ProjectDTO dto = new ProjectDTO();
+        dto.setId(projectId);
+        dto.setOwner(owner);
+        dto.setName(projectName);
+        return dto;
+    }
+
     public ProjectDTO deleteProject(String projectId, String authenticatedUser) {
         // 1) prendo document da Mongo
         Project project = mongoProjectRepository.findById(projectId)
@@ -233,7 +266,8 @@ public class ProjectService {
     private ProjectDTO deleteProject(String owner,
                                      String projectName,
                                      String projectId,
-                                     String authenticatedUser) {
+                                     String authenticatedUser
+                                    ) {
         // 1) permessi
         if (!mongoProjectRepository.findById(projectId)
                 .orElseThrow(() -> new RuntimeException("Project not found"))
@@ -744,6 +778,28 @@ public class ProjectService {
             throw new RuntimeException("Forbidden: you are not collaborator on project " + owner + "/" + projectName);
         }
         return neoMethodRepository.findTop20ByOwnerAndProjectName(owner, projectName);
+    }
+
+    // get first 100 files
+    public List<String> getAllFiles(String owner, String projectName) {
+        return mongoFileRepository.findTop100ByOwnerAndProjectNameOrderByPathAsc(owner, projectName)
+                .orElse(null)
+                .stream()
+                .map(File::getPath)
+                .collect(Collectors.toList());
+    }
+
+
+    // get files paginated in pages of 50
+    public List<String> getAllFilesPaginated(String owner,
+                                             String projectName,
+                                             int page) {
+        Page<File> p = mongoFileRepository.findByOwnerAndProjectNameOrderByPathAsc(
+                owner, projectName, PageRequest.of(page, 50)
+        );
+        return p.stream()
+                .map(File::getPath)
+                .collect(Collectors.toList());
     }
 
 }

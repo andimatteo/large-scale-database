@@ -109,6 +109,43 @@ public class GuestController {
         }
     }
 
+    // GET /api/guest/project/files/{username}/{projectName} : get project files (first 100)
+    @GetMapping("/project/files/{owner}/{projectName}")
+    public ResponseEntity<ResponseDTO<List<String>>> getProjectFiles(@PathVariable String owner,
+                                                                     @PathVariable String projectName) {
+        try {
+            List<String> files = projectService.getAllFiles(owner,projectName);
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .body(new ResponseDTO<>(true, "", files));
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false,
+                            "Error retrieving commits for project /" + owner + "/" + projectName + ": " + e.getMessage(),
+                            null));
+        }
+    }
+
+    // GET /api/guest/project/files/{username}/{projectName}/{page} : get project files (paginated in pages of 50)
+    @GetMapping("/project/files/{owner}/{projectName}/{page}")
+    public ResponseEntity<ResponseDTO<List<String>>> getProjectFiles(@PathVariable String owner,
+                                                                     @PathVariable String projectName,
+                                                                     @PathVariable Integer page) {
+        try {
+            List<String> files = projectService.getAllFilesPaginated(owner,projectName,page);
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .body(new ResponseDTO<>(true, "", files));
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false,
+                            "Error retrieving commits for project /" + owner + "/" + projectName + ": " + e.getMessage(),
+                            null));
+        }
+    }
+
     // per quanto riguarda i commit non e' necessario un DTO, viene ritornato esattamente
     // il documento presente in mongoDB
 

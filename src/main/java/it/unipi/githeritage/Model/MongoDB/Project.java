@@ -35,7 +35,7 @@ public class Project {
     private String version;
     private Instant creationDate;
     private List<String> administrators;
-    private Set<String> fileIds;
+    private List<String> fileIds;
 
     // array of comments
     private List<Comment> comments;

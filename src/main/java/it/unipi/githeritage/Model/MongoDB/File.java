@@ -29,8 +29,8 @@ public class File {
     // redundant fields to support index, not join operations
     private String owner;
     private String projectName;
-
     private String path;
+
     private String type;
     private Integer size;
     private Integer lines;

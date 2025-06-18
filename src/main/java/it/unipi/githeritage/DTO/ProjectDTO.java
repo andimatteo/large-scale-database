@@ -26,7 +26,7 @@ public class ProjectDTO {
     private Instant creationDate;
     private List<String> administrators;
     private List<Commit> commits;
-    private Set<String> fileIds;
+    private List<String> fileIds;
 
     public static ProjectDTO fromProject(Project savedProject) {
         ProjectDTO projectDTO = new ProjectDTO();
