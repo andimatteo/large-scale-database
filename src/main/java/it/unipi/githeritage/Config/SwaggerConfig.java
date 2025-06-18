@@ -16,7 +16,7 @@ public class SwaggerConfig {
             .info(new Info()
                 .title("GitHeritage API")
                 .version("1.0.0")
-                .description("Basic authentication API for GitHeritage"))
+                .description("documentation for GitHeritage API"))
             .addSecurityItem(new SecurityRequirement().addList("basicAuth"))
             .components(new io.swagger.v3.oas.models.Components()
                 .addSecuritySchemes("basicAuth",

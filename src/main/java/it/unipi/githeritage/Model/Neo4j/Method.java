@@ -16,8 +16,9 @@ public class Method {
 
     private String username;
     private String fullyQualifiedName;
-    private String methodName;
 
+    private Integer lines;
+    private Integer logicPaths;
     private float hotness;
     
 //    private String projectId; // ridondanze, da valutare se utile

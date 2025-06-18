@@ -16,6 +16,7 @@ import org.bson.Document;
 import it.unipi.githeritage.Repository.MongoDB.MongoUserRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.*;
 
 @Repository
@@ -43,8 +44,15 @@ public class UserMongoDAO {
 
     public User addUser(UserDTO user) {
         // Convert UserDTO to User
-
         User newUser = User.fromDTO(user);
+        if (newUser.getRegistrationDate() == null) {
+            newUser.setRegistrationDate(Instant.now());
+        }
+        newUser.setComments(null);
+        newUser.setProjects(null);
+        newUser.setIsAdmin(false);
+        newUser.setFollowerNumber(0);
+        newUser.setFollowingNumber(0);
         return addUser(newUser);
         
     }

@@ -1,5 +1,6 @@
 package it.unipi.githeritage.Service;
 
+import it.unipi.githeritage.DTO.PathDTO;
 import it.unipi.githeritage.Repository.MongoDB.MongoUserRepository;
 import it.unipi.githeritage.Repository.Neo4j.NeoUserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,10 +45,10 @@ public class UserService {
             // Save the user in MongoDB
             userDTO.setIsAdmin(false); // Default to non-admin
             //userDTO.setRegistrationDate(LocalDate.now()); // Set registration date to current date
-
             UserDTO addedUser = UserDTO.fromUser(userMongoDAO.addUser(userDTO));
-            // Save the user in Neo4j
 
+
+            // Save the user in Neo4j
             neo4jDAO.mergeUser(userDTO.getUsername());
             neo4j = true;
             session.commitTransaction();
@@ -132,4 +133,20 @@ public class UserService {
             session.close();
         }
     }
+
+    public PathDTO getFollowPath(String from, String to) {
+        return neo4jDAO.getFollowPath(from, to)
+                .orElse(new PathDTO(-1, List.of()));
+    }
+
+    public PathDTO getProjectPath(String from, String to) {
+        return neo4jDAO.getProjectPath(from, to)
+                .orElse(new PathDTO(-1, List.of()));
+    }
+
+    public List<it.unipi.githeritage.Model.Neo4j.User> discoverPeople(String username) {
+        return neoUserRepository.findSuggestedPeople(username);
+    }
+
+
 }

@@ -11,9 +11,12 @@ import it.unipi.githeritage.DTO.*;
 import it.unipi.githeritage.Model.MongoDB.Commit;
 import it.unipi.githeritage.Model.MongoDB.File;
 import it.unipi.githeritage.Model.MongoDB.Project;
+import it.unipi.githeritage.Model.Neo4j.Method;
 import it.unipi.githeritage.Repository.MongoDB.MongoCommitRepository;
 import it.unipi.githeritage.Repository.MongoDB.MongoFileRepository;
 import it.unipi.githeritage.Repository.MongoDB.MongoProjectRepository;
+import it.unipi.githeritage.Repository.Neo4j.NeoMethodRepository;
+import it.unipi.githeritage.Repository.Neo4j.NeoProjectRepository;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -59,10 +62,18 @@ public class ProjectService {
 
     @Autowired
     private MongoFileRepository mongoFileRepository;
+
     @Autowired
     private MongoClient mongo;
+
     @Autowired
     private MongoCommitRepository mongoCommitRepository;
+
+    @Autowired
+    private NeoProjectRepository neoProjectRepository;
+
+    @Autowired
+    private NeoMethodRepository neoMethodRepository;
 
     // create a new project
     public ProjectDTO addProject(ProjectDTO projectDTO) {
@@ -704,5 +715,35 @@ public class ProjectService {
         return parts.length >= 3 ? parts[2] : parts[1];
     }
 
+    public PathDTO findVulnerabilityPath(String projectId) {
+        // se non trova nulla, distanza -1 e lista vuota
+        return neo4jDAO.getVulnerabilityPath(projectId)
+                .orElse(new PathDTO(-1, List.of()));
+    }
+
+    public PathDTO findVulnerabilityPathByOwnerAndName(String owner, String projectName) {
+        return neo4jDAO.getVulnerabilityPathByOwnerAndName(owner, projectName)
+                .orElse(new PathDTO(-1, List.of()));
+    }
+
+    public List<it.unipi.githeritage.Model.Neo4j.Project> discoverProjects(String username) {
+        return neoProjectRepository.findRecommendedProjects(username);
+    }
+
+    public List<Method> getInefficienciesByProjectId(String username, String projectId) {
+        if (!neoProjectRepository.isCollaborator(username, projectId)) {
+            throw new RuntimeException("Forbidden: you are not collaborator on project " + projectId);
+        }
+        return neoMethodRepository.findTop20ByProjectId(projectId);
+    }
+
+    public List<Method> getInefficienciesByOwnerAndName(String username,
+                                                        String owner,
+                                                        String projectName) {
+        if (!neoProjectRepository.isCollaboratorByOwnerAndName(username, owner, projectName)) {
+            throw new RuntimeException("Forbidden: you are not collaborator on project " + owner + "/" + projectName);
+        }
+        return neoMethodRepository.findTop20ByOwnerAndProjectName(owner, projectName);
+    }
 
 }

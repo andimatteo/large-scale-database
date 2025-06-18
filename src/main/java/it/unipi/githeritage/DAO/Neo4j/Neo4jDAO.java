@@ -1,11 +1,13 @@
 package it.unipi.githeritage.DAO.Neo4j;
 
+import it.unipi.githeritage.DTO.PathDTO;
 import it.unipi.githeritage.DTO.ProjectDTO;
 import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Repository
@@ -275,5 +277,118 @@ public class Neo4jDAO {
                 .run();
     }
 
+    /**
+     * Distanza “follow” tra due utenti, considerando
+     * la relazione FOLLOWS come non direzionale:
+     * MATCH p = shortestPath((a)-[:FOLLOWS*]-(b))
+     */
+    public int followDistance(String userA, String userB) {
+        String cypher = """
+            MATCH (a:User {username: $userA}), (b:User {username: $userB})
+            OPTIONAL MATCH p = shortestPath((a)-[:FOLLOWS*]-(b))
+            RETURN CASE WHEN p IS NULL THEN -1 ELSE length(p) END AS dist
+            """;
+        return client.query(cypher)
+                .bind(userA).to("userA")
+                .bind(userB).to("userB")
+                .fetch().one()
+                .map(row -> ((Number)row.get("dist")).intValue())
+                .orElse(-1);
+    }
+
+    public Optional<PathDTO> getFollowPath(String userA, String userB) {
+        String cypher = """
+        MATCH (a:User {username: $userA}), (b:User {username: $userB})
+        MATCH p = shortestPath((a)-[:FOLLOWS*]-(b))
+        RETURN 
+          length(p)       AS dist,
+          [n IN nodes(p) | n.username] AS nodes
+        """;
+        return client.query(cypher)
+                .bind(userA).to("userA")
+                .bind(userB).to("userB")
+                .fetch().one()
+                .map(record -> {
+                    int dist = ((Number) record.get("dist")).intValue();
+                    @SuppressWarnings("unchecked")
+                    List<String> path = (List<String>) record.get("nodes");
+                    return new PathDTO(dist, path);
+                });
+    }
+
+    public Optional<PathDTO> getProjectPath(String userA, String userB) {
+        String cypher = """
+        MATCH (a:User {username: $userA}), (b:User {username: $userB})
+        MATCH p = shortestPath((a)-[:COLLABORATES_ON*]-(b))
+        RETURN 
+          toInteger(length(p)/2) AS dist,
+          [n IN nodes(p) | 
+             CASE 
+               WHEN n:User THEN n.username 
+               ELSE n.owner + '/' + n.name 
+             END
+          ] AS nodes
+        """;
+        return client.query(cypher)
+                .bind(userA).to("userA")
+                .bind(userB).to("userB")
+                .fetch().one()
+                .map(record -> {
+                    int dist = ((Number) record.get("dist")).intValue();
+                    @SuppressWarnings("unchecked")
+                    List<String> path = (List<String>) record.get("nodes");
+                    return new PathDTO(dist, path);
+                });
+    }
+
+
+    public Optional<PathDTO> getVulnerabilityPath(String projectId) {
+        String cypher = """
+        MATCH (start:Project {id: $projectId})
+        // cerchiamo il progetto vulnerabile più vicino
+        MATCH path = shortestPath(
+          (start)-[:DEPENDS_ON*]->(v:Project {vulnerability: true})
+        )
+        RETURN 
+          length(path) AS dist,
+          [n IN nodes(path) | 
+             CASE 
+               WHEN n:Project THEN n.owner + '/' + n.name 
+               ELSE n.id 
+             END
+          ] AS nodes
+        """;
+        return client.query(cypher)
+                .bind(projectId).to("projectId")
+                .fetch().one()
+                .map(record -> {
+                    int dist = ((Number)record.get("dist")).intValue();
+                    @SuppressWarnings("unchecked")
+                    List<String> nodes = (List<String>)record.get("nodes");
+                    return new PathDTO(dist, nodes);
+                });
+    }
+
+    public Optional<PathDTO> getVulnerabilityPathByOwnerAndName(String owner, String projectName) {
+        String cypher = """
+            MATCH (start:Project {owner: $owner, name: $projectName})
+            MATCH path = shortestPath(
+              (start)-[:DEPENDS_ON*]->(v:Project {vulnerability: true})
+            )
+            RETURN 
+              length(path) AS dist,
+              [n IN nodes(path) | n.owner + '/' + n.name] AS nodes
+            """;
+        return client.query(cypher)
+                .bind(owner).to("owner")
+                .bind(projectName).to("projectName")
+                .fetch().one()
+                .map(record -> {
+                    int dist = ((Number)record.get("dist")).intValue();
+                    @SuppressWarnings("unchecked")
+                    List<String> nodes = (List<String>)record.get("nodes");
+                    return new PathDTO(dist, nodes);
+                });
+    }
 
 }

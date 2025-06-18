@@ -2,10 +2,33 @@ package it.unipi.githeritage.Repository.Neo4j;
 
 import it.unipi.githeritage.Model.Neo4j.Project;
 import org.springframework.data.neo4j.repository.Neo4jRepository;
+import org.springframework.data.neo4j.repository.query.Query;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface NeoProjectRepository extends Neo4jRepository<Project, String> {
-    Optional<Project> findByName(String name);
+    @Query("""
+       MATCH (me:User {username: $username})-[:FOLLOWS]->(f:User)
+       MATCH (f)-[:COLLABORATES_ON]->(p:Project)
+       WHERE NOT (me)-[:COLLABORATES_ON]->(p)
+       RETURN DISTINCT p
+       LIMIT 20
+    """)
+    List<Project> findRecommendedProjects(String username);
+
+    /** Controlla se user collabora sul progetto (id) */
+    @Query("""
+       MATCH (u:User {username: $username})-[:COLLABORATES_ON]->(p:Project {id: $projectId})
+       RETURN COUNT(p)>0
+    """)
+    boolean isCollaborator(String username, String projectId);
+
+    /** Controlla se user collabora sul progetto (owner+projectName) */
+    @Query("""
+       MATCH (u:User {username: $username})-[:COLLABORATES_ON]->(p:Project {owner: $owner, projectName: $projectName})
+       RETURN COUNT(p)>0
+    """)
+    boolean isCollaboratorByOwnerAndName(String username, String owner, String projectName);
 }
 

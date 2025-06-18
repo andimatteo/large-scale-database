@@ -9,6 +9,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import it.unipi.githeritage.DTO.UserDTO;
 import lombok.Data;
 
+import java.time.Instant;
 import java.util.List;
 
 @Data
@@ -26,8 +27,10 @@ public class User {
     private String nationality;
     private Integer followerNumber;
     private Integer followingNumber;
+    private List<String> comments;
     private List<String> projects;
     private Boolean isAdmin;
+    private Instant registrationDate;
 
     public static User fromDTO(UserDTO userDTO) {
         User user = new User();

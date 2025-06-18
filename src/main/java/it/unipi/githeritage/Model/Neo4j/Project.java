@@ -13,7 +13,8 @@ import java.util.Set;
 public class Project {
     @Id
     private String id;
-    private String name;
+    private String owner;
+    private String projectName;
 
     @Relationship(type="COLLABORATES_ON", direction=Relationship.Direction.INCOMING)
     private Set<User> collaborators;

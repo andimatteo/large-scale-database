@@ -5,6 +5,7 @@ import java.util.List;
 
 import it.unipi.githeritage.DTO.*;
 import it.unipi.githeritage.Model.MongoDB.Project;
+import it.unipi.githeritage.Model.Neo4j.Method;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -50,6 +51,8 @@ public class UserController {
             CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
             //System.out.println("Authenticated user: " + authenticatedUser);
             String authenticatedUsername = authenticatedUser.getUsername();
+
+            // todo if not logged then raise error
             
             userDTO.setUsername(authenticatedUsername);
             userDTO.setIsAdmin(null); // Ensure isAdmin is not modified
@@ -70,6 +73,7 @@ public class UserController {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
             String authenticatedUsername = authenticatedUser.getUsername();
+            // todo if not logged then raise error
             UserDTO dto = null;
             if (authenticatedUsername != null) {
                 // delete user
@@ -96,6 +100,8 @@ public class UserController {
             CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
             //System.out.println("Authenticated user: " + authenticatedUser);
             String authenticatedUsername = authenticatedUser.getUsername();
+
+            // todo if not logged then raise error
 
             // prevent setting of _id
             projectDTO.setId(null);
@@ -141,6 +147,7 @@ public class UserController {
             CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
 
             String authenticatedUsername = authenticatedUser.getUsername();
+            // todo if not logged then raise error
 
             // Call the service to update the project
             Project updatedProject = projectService.updateProject(commitIdDTO, authenticatedUsername);
@@ -163,6 +170,7 @@ public class UserController {
             CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
 
             String authenticatedUsername = authenticatedUser.getUsername();
+            // todo if not logged then raise error
 
             // Call the service to update the project
             ProjectDTO updatedProject = projectService.updateProject(commitOwnerDTO, authenticatedUsername);
@@ -175,43 +183,47 @@ public class UserController {
 
     // DELETE /api/user/project?projectId=projectId : delete project
     // query parameters: projectId
-//    @DeleteMapping("/project")
-//    public ResponseEntity<ResponseDTO<ProjectDTO>> deleteProject(@RequestParam String projectId) {
-//        try {
-//            // Get the authenticated user from security context
-//            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-//            CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
-//            //System.out.println("Authenticated user: " + authenticatedUser);
-//            String authenticatedUsername = authenticatedUser.getUsername();
-//            // Call the service to update the project
-//            ProjectDTO deletedProject = projectService.deleteProject(projectId, authenticatedUser);
-//            return ResponseEntity.ok(new ResponseDTO<>(true, "Project updated successfully", updatedProject));
-//        } catch (Exception e) {
-//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-//                    .body(new ResponseDTO<>(false, "Error updating project: " + e.getMessage(), null));
-//        }
-//    }
+    @DeleteMapping("/project")
+    public ResponseEntity<ResponseDTO<ProjectDTO>> deleteProject(@RequestParam String projectId) {
+        try {
+            // Get the authenticated user from security context
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
+            //System.out.println("Authenticated user: " + authenticatedUser);
+            String username = authenticatedUser.getUsername();
+            // todo if not logged then raise error
+
+            // Call the service to update the project
+            ProjectDTO deletedProject = projectService.deleteProject(projectId, username);
+            return ResponseEntity.ok(new ResponseDTO<>(true, "Project updated successfully", deletedProject));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false, "Error updating project: " + e.getMessage(), null));
+        }
+    }
 
     // DELETE /api/user/project : delete project
     // query parameters: projectId
-//    @DeleteMapping("/project/{owner}/{projectName}")
-//    public ResponseEntity<ResponseDTO<ProjectDTO>> deleteProject(@PathVariable String owner,
-//                                                        @PathVariable String projectName) {
-//        try {
-//            // Get the authenticated user from security context
-//            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-//            CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
-//            //System.out.println("Authenticated user: " + authenticatedUser);
-//            String authenticatedUsername = authenticatedUser.getUsername();
-//            // Call the service to update the project
-//            ProjectDTO deletedProject = projectService.deleteProject(owner, projectName, authenticatedUsername);
-//            return ResponseEntity.ok(new ResponseDTO<>(true, "Project deleted successfully",
-//                    deletedProject));
-//        } catch (Exception e) {
-//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-//                    .body(new ResponseDTO<>(false, "Error updating project: " + e.getMessage(), null));
-//        }
-//    }
+    @DeleteMapping("/project/{owner}/{projectName}")
+    public ResponseEntity<ResponseDTO<ProjectDTO>> deleteProject(@PathVariable String owner,
+                                                        @PathVariable String projectName) {
+        try {
+            // Get the authenticated user from security context
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
+            //System.out.println("Authenticated user: " + authenticatedUser);
+            String authenticatedUsername = authenticatedUser.getUsername();
+            // todo if not logged then raise error
+
+            // Call the service to update the project
+            ProjectDTO deletedProject = projectService.deleteProject(owner, projectName, authenticatedUsername);
+            return ResponseEntity.ok(new ResponseDTO<>(true, "Project deleted successfully",
+                    deletedProject));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false, "Error updating project: " + e.getMessage(), null));
+        }
+    }
 
     // NO
     // PUT /api/user/project/ownership : change ownership of project
@@ -307,7 +319,6 @@ public class UserController {
 //        }
 //    }
 
-
     // POST /api/user/follow : follow a user
     // query parameters: username to follow
     @PostMapping("/follow")
@@ -318,6 +329,7 @@ public class UserController {
             CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
             //System.out.println("Authenticated user: " + authenticatedUser);
             String authenticatedUsername = authenticatedUser.getUsername();
+            // todo if not logged then raise error
 
             // Call the service to follow the user
             userService.followUser(authenticatedUsername, username);
@@ -336,6 +348,8 @@ public class UserController {
             CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
             //System.out.println("Authenticated user: " + authenticatedUser);
             String authenticatedUsername = authenticatedUser.getUsername();
+            // todo if not logged then raise error
+
             // Call the service to unfollow the user
             userService.unfollowUser(authenticatedUsername, username);
             return ResponseEntity.ok(new ResponseDTO<>(true, "User unfollowed successfully", null));
@@ -346,22 +360,238 @@ public class UserController {
     }
 
     // GET /api/distance/follow/{username} : compute follow distance between me and user {username}
+    @GetMapping("/distance/follow/{username}")
+    public ResponseEntity<ResponseDTO<PathDTO>> getFollowPath(@PathVariable String username) {
+        try {
+            // Get the authenticated user from security context
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
+            //System.out.println("Authenticated user: " + authenticatedUser);
+            String authenticatedUsername = authenticatedUser.getUsername();
+            // todo if not logged then raise error
+
+            PathDTO pathDTO = userService.getFollowPath(authenticatedUsername, username);
+            String msg = pathDTO.getDistance() < 0
+                    ? "No vulnerable dependencies found"
+                    : "Vulnerability path retrieved";
+            return ResponseEntity.ok(new ResponseDTO<>(true, msg, pathDTO));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false, "Error finding distance: " + e.getMessage(), null));
+        }
+    }
 
     // GET /api/distance/follow/{username}/{username} : compute follow distance between two users
+    @GetMapping("/distance/follow/{username1}/{username2}")
+    public ResponseEntity<ResponseDTO<PathDTO>> getFollowPath(@PathVariable String username1,
+                                                              @PathVariable String username2) {
+        try {
+            // Get the authenticated user from security context
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
+            //System.out.println("Authenticated user: " + authenticatedUser);
+            String authenticatedUsername = authenticatedUser.getUsername();
+            // todo if not logged then raise error
+
+
+            PathDTO pathDTO = userService.getFollowPath(username1, username2);
+            String msg = pathDTO.getDistance() < 0
+                    ? "No vulnerable dependencies found"
+                    : "Vulnerability path retrieved";
+            return ResponseEntity.ok(new ResponseDTO<>(true, msg, pathDTO));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false, "Error finding distance: " + e.getMessage(), null));
+        }
+    }
 
     // GET /api/distance/project/{username} : compute project distance between me and user {username}
+    @GetMapping("/distance/project/{username}")
+    public ResponseEntity<ResponseDTO<PathDTO>> getProjectPath(@PathVariable String username) {
+        try {
+            // Get the authenticated user from security context
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
+            //System.out.println("Authenticated user: " + authenticatedUser);
+            String authenticatedUsername = authenticatedUser.getUsername();
+            // todo if not logged then raise error
+
+            PathDTO pathDTO = userService.getProjectPath(authenticatedUsername, username);
+            String msg = pathDTO.getDistance() < 0
+                    ? "No vulnerable dependencies found"
+                    : "Vulnerability path retrieved";
+            return ResponseEntity.ok(new ResponseDTO<>(true, msg, pathDTO));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false, "Error finding path: " + e.getMessage(), null));
+        }
+    }
 
     // GET /api/distance/project/{username}/{username} : compute project distance between two users
+    @GetMapping("/distance/project/{username1}/{username2}")
+    public ResponseEntity<ResponseDTO<PathDTO>> getProjectPathGeneric(@PathVariable String username1,
+                                                              @PathVariable String username2) {
+        try {
+            // Get the authenticated user from security context
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
+            //System.out.println("Authenticated user: " + authenticatedUser);
+            String authenticatedUsername = authenticatedUser.getUsername();
+            // todo if not logged then raise error
 
-    // GET /api/user/vulnerability : discover vulnerabilities on project {id} from graph
-    // query parameters: project id
+
+            PathDTO pathDTO = userService.getProjectPath(username1, username2);
+            String msg = pathDTO.getDistance() < 0
+                    ? "No vulnerable dependencies found"
+                    : "Vulnerability path retrieved";
+            return ResponseEntity.ok(new ResponseDTO<>(true, msg, pathDTO));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false, "Error finding path: " + e.getMessage(), null));
+        }
+    }
+
+    // GET /api/project/vulnerability/{projectId} : discover vulnerabilities on project {id} from graph
+    @GetMapping("/vulnerability/{projectId}")
+    public ResponseEntity<ResponseDTO<PathDTO>> getVulnerabilityPath(
+            @PathVariable String projectId) {
+
+        try {
+            Authentication auth = SecurityContextHolder
+                    .getContext().getAuthentication();
+            if (auth == null || !auth.isAuthenticated()) {
+                return ResponseEntity
+                        .status(HttpStatus.UNAUTHORIZED)
+                        .body(new ResponseDTO<>(false, "Unauthorized", null));
+            }
+
+            PathDTO path = projectService.findVulnerabilityPath(projectId);
+            String msg = path.getDistance() < 0
+                    ? "No vulnerable dependencies found"
+                    : "Vulnerability path retrieved";
+
+            return ResponseEntity.ok(
+                    new ResponseDTO<>(true, msg, path)
+            );
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false, "Error finding path: " + e.getMessage(), null));
+        }
+    }
+
+    // GET /api/project/vulnerability/{owner}/{projectName} : discover vulnerabilities on project {id} from graph
+    @GetMapping("/vulnerability/{owner}/{projectName}")
+    public ResponseEntity<ResponseDTO<PathDTO>> getVulnerabilityPathByOwnerAndName(
+            @PathVariable String owner,
+            @PathVariable String projectName) {
+
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth == null || !auth.isAuthenticated()) {
+                return ResponseEntity
+                        .status(HttpStatus.UNAUTHORIZED)
+                        .body(new ResponseDTO<>(false, "Unauthorized", null));
+            }
+
+            PathDTO path = projectService.findVulnerabilityPathByOwnerAndName(owner, projectName);
+            String msg = path.getDistance() < 0
+                    ? "No vulnerable dependencies found"
+                    : "Vulnerability path retrieved";
+            return ResponseEntity.ok(new ResponseDTO<>(true, msg, path));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false, "Error finding dependencies: " + e.getMessage(), null));
+        }
+    }
 
     // GET /api/user/discover/projects : discover new projects (based on projects of pepole I follow)
-    // query parameters: username
+    @GetMapping("/discover/projects")
+    public ResponseEntity<ResponseDTO<List<it.unipi.githeritage.Model.Neo4j.Project>>> discoverProjects() {
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth == null || !auth.isAuthenticated()) {
+                return ResponseEntity
+                        .status(HttpStatus.UNAUTHORIZED)
+                        .body(new ResponseDTO<>(false, "Unauthorized", null));
+            }
+            String username = auth.getPrincipal().toString();
+            List<it.unipi.githeritage.Model.Neo4j.Project> projects = projectService.discoverProjects(username);
+            return ResponseEntity.ok(new ResponseDTO<>(true, "", projects));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false, "Error finding suggestions: " + e.getMessage(), null));
+        }
+    }
 
     // GET /api/user/discover/people : discover new people I can follow (friends of friends)
     // query parameters: username
+    @GetMapping("/discover/people")
+    public ResponseEntity<ResponseDTO<List<it.unipi.githeritage.Model.Neo4j.User>>> discoverPeople() {
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth == null || !auth.isAuthenticated()) {
+                return ResponseEntity
+                        .status(HttpStatus.UNAUTHORIZED)
+                        .body(new ResponseDTO<>(false, "Unauthorized", null));
+            }
+            String username = auth.getPrincipal().toString();
+            List<it.unipi.githeritage.Model.Neo4j.User> users = userService.discoverPeople(username);
+            return ResponseEntity.ok(new ResponseDTO<>(true, "", users));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false, "Error finding suggestions: " + e.getMessage(), null));
+        }
+    }
 
-    // GET /api/user/inefficiencies : discover inefficiencies in project {id} from graph
-    // query parameters: project id --> 20 metodi ordinati per hotness decrescente in un progetto
+
+    // SOLTANTO UN UTENTE CHE COLLABORA A QUESTO PROGETTO DEVE ESSERE IN GRADO DI VEDERE QUESTA COSA
+    // GET /api/user/inefficiencies/{projectId} : discover inefficiencies in project {id} from graph
+    // 20 metodi ordinati per hotness decrescente in un progetto
+    @GetMapping("/inefficiencies/{projectId}")
+    public ResponseEntity<ResponseDTO<List<Method>>> getInefficienciesByProjectId(
+            @PathVariable String projectId) {
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth == null || !auth.isAuthenticated()) {
+                return ResponseEntity
+                        .status(HttpStatus.UNAUTHORIZED)
+                        .body(new ResponseDTO<>(false, "Unauthorized", null));
+            }
+            String username = auth.getName();
+            List<Method> methods = projectService.getInefficienciesByProjectId(username, projectId);
+            return ResponseEntity.ok(new ResponseDTO<>(true, "Inefficiencies retrieved", methods));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ResponseDTO<>(false, e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false, "Error retrieving inefficiencies: " + e.getMessage(), null));
+        }
+    }
+
+    // SOLTANTO UN UTENTE CHE COLLABORA A QUESTO PROGETTO DEVE ESSERE IN GRADO DI VEDERE QUESTA COSA
+    // GET /api/user/inefficiencies/{owner}/{projectName} : discover inefficiencies in project {id} from graph
+    // 20 metodi ordinati per hotness decrescente in un progetto
+    @GetMapping("/inefficiencies/{owner}/{projectName}")
+    public ResponseEntity<ResponseDTO<List<Method>>> getInefficienciesByOwnerAndName(
+            @PathVariable String owner,
+            @PathVariable String projectName) {
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth == null || !auth.isAuthenticated()) {
+                return ResponseEntity
+                        .status(HttpStatus.UNAUTHORIZED)
+                        .body(new ResponseDTO<>(false, "Unauthorized", null));
+            }
+            String username = auth.getName();
+            List<Method> methods = projectService.getInefficienciesByOwnerAndName(username, owner, projectName);
+            return ResponseEntity.ok(new ResponseDTO<>(true, "Inefficiencies retrieved", methods));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ResponseDTO<>(false, e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false, "Error retrieving inefficiencies: " + e.getMessage(), null));
+        }
+    }
 }
