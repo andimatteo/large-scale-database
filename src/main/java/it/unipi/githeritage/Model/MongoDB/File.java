@@ -33,8 +33,9 @@ public class File {
     private String type;
     private Integer size;
     private Integer lines;
+    private String content;
+
     private Instant lastModified;
     private String lastModifiedBy;
-    private String content;
 
 }

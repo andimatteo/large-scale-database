@@ -2,6 +2,7 @@ package it.unipi.githeritage.Controller;
 
 import it.unipi.githeritage.Config.Security.CustomUserDetails;
 import it.unipi.githeritage.DTO.ResponseDTO;
+import it.unipi.githeritage.DTO.UserDTO;
 import it.unipi.githeritage.DTO.UserMetadataDTO;
 import it.unipi.githeritage.Service.UserService;
 import lombok.AllArgsConstructor;
@@ -23,31 +24,31 @@ public class AdminController {
     private final UserService userService;
 
     // DELETE /api/admin/user/{username} : delete arbitrary user
-//    @DeleteMapping("/user/{username}")
-//    public ResponseEntity<ResponseDTO<UserDTO>> deleteUser(
-//            @PathVariable String username
-//    ) {
-//        try {
-//            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-//            CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
-//            String authenticatedUsername = authenticatedUser.getUsername();
-//
-//            Boolean isAdmin = authenticatedUser.getIsAdmin();
-//            if (!isAdmin) {
-//                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-//                        .body(new ResponseDTO<>(false, "You are not Admin", null));
-//            }
-//
-//            UserDTO dto = null;
-//            if (authenticatedUsername != null) {
-//                dto = userService.deleteUser(username);
-//            }
-//            return ResponseEntity.ok(new ResponseDTO<>(true, "User deleted successfully", dto));
-//        } catch (Exception e) {
-//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-//                    .body(new ResponseDTO<>(false, "Error deleting user: " + e.getMessage(), null));
-//        }
-//    }
+    @DeleteMapping("/user/{username}")
+    public ResponseEntity<ResponseDTO<UserDTO>> deleteUser(
+            @PathVariable String username
+    ) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
+            String authenticatedUsername = authenticatedUser.getUsername();
+
+            Boolean isAdmin = authenticatedUser.getIsAdmin();
+            if (!isAdmin) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ResponseDTO<>(false, "You are not Admin", null));
+            }
+
+            UserDTO dto = null;
+            if (authenticatedUsername != null) {
+                dto = userService.deleteUser(username);
+            }
+            return ResponseEntity.ok(new ResponseDTO<>(true, "User deleted successfully", dto));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false, "Error deleting user: " + e.getMessage(), null));
+        }
+    }
 
 //    // PUT /api/admin/user/{username} : update arbitrary user
 //    @PutMapping("/user")

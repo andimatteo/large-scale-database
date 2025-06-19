@@ -20,16 +20,20 @@ public class User {
     @Id
     @JsonProperty("_id")
     private String username;
+
     private String password;
     private String email;
     private String name;
     private String surname;
+    private String nationality;
     private Integer followerNumber;
     private Integer followingNumber;
-    private List<String> comments;
-    private List<String> projects;
     private Boolean isAdmin;
     private Instant registrationDate;
+
+    private List<String> commentIds;
+    private List<String> projectIds;
+    private List<String> commitIds;
 
     public static User fromDTO(UserDTO userDTO) {
         User user = new User();
@@ -40,7 +44,7 @@ public class User {
         user.setSurname(userDTO.getSurname());
         user.setFollowerNumber(userDTO.getFollowerNumber());
         user.setFollowingNumber(userDTO.getFollowingNumber());
-        user.setProjects(userDTO.getProjects());
+        user.setProjectIds(userDTO.getProjects());
         user.setIsAdmin(userDTO.getIsAdmin());
         return user;
     }

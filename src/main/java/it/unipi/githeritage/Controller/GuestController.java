@@ -3,8 +3,10 @@ package it.unipi.githeritage.Controller;
 import it.unipi.githeritage.DTO.*;
 import it.unipi.githeritage.Model.MongoDB.Commit;
 import it.unipi.githeritage.Model.MongoDB.File;
+import it.unipi.githeritage.Model.MongoDB.Project;
 import it.unipi.githeritage.Service.FileService;
 import it.unipi.githeritage.Service.ProjectService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -67,7 +69,7 @@ public class GuestController {
 
     // GET /api/guest/user/{username}/distribution : get user info with commit distributions
     @GetMapping("/user/{username}/distribution")
-    public ResponseEntity<ResponseDTO<UserActivityDistributionDTO>> getUserWithDistribution(@PathVariable String username) {
+    public ResponseEntity<ResponseDTO<List<DailyCommitCountDTO>>> getUserWithDistribution(@PathVariable String username) {
         try {
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseDTO<>(Boolean.TRUE,"",projectService.getUserActivityDistribution(username)));
@@ -97,8 +99,8 @@ public class GuestController {
 
     // GET /api/guest/project/{username}/{projectName} : get project info
     @GetMapping("/project/{username}/{projectName}")
-    public ResponseEntity<ResponseDTO<Optional<ProjectDTO>>> getProject(@PathVariable String username,
-                                                                        @PathVariable String projectName) {
+    public ResponseEntity<ResponseDTO<ProjectDTO>> getProject(@PathVariable String username,
+                                                           @PathVariable String projectName) {
         try {
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseDTO<>(Boolean.TRUE,"",projectService.getProjectByOwnerAndName(username,projectName)));
@@ -155,9 +157,9 @@ public class GuestController {
 
     // GET /api/guest/commit
     @GetMapping("/commit/{projectId}")
-    public ResponseEntity<ResponseDTO<List<Commit>>> getLast40Commits(@PathVariable String projectId) {
+    public ResponseEntity<ResponseDTO<List<Commit>>> getLast100Commits(@PathVariable String projectId) {
         try {
-            List<Commit> commits = projectService.getLast40Commits(projectId);
+            List<Commit> commits = projectService.getLast100Commits(projectId);
             return ResponseEntity
                     .status(HttpStatus.OK)
                     .body(new ResponseDTO<>(true, "", commits));
@@ -170,12 +172,13 @@ public class GuestController {
         }
     }
 
+
     // GET /api/guest/commit/{owner}/{projectName} : get last commits (40) for project
     @GetMapping("/commit/{owner}/{projectName}")
-    public ResponseEntity<ResponseDTO<List<Commit>>> getLast40Commits(@PathVariable String owner,
+    public ResponseEntity<ResponseDTO<List<Commit>>> getLast100Commits(@PathVariable String owner,
                                                                       @PathVariable String projectName) {
         try {
-            List<Commit> commits = projectService.getLast40Commits(owner,projectName);
+            List<Commit> commits = projectService.getLast100Commits(owner,projectName);
             return ResponseEntity
                     .status(HttpStatus.OK)
                     .body(new ResponseDTO<>(true, "", commits));
@@ -189,7 +192,7 @@ public class GuestController {
     }
 
     // GET /api/guest/project/commit/{page}?projectId={projectId} : see all commits for project (paginated in
-    //                                                                      pages of 20)
+    //                                                                      pages of 100)
     @GetMapping("/commit/{projectId}/{page}")
     public ResponseEntity<ResponseDTO<List<Commit>>> getCommitsByPage(
             @PathVariable String projectId,
@@ -210,7 +213,7 @@ public class GuestController {
     }
 
     // GET /api/guest/project/commit/{page}?projectId={projectId} : see all commits for project (paginated in
-    //                                                                      pages of 20)
+    //                                                                      pages of 100)
     @GetMapping("/commit/{owner}/{projectName}/{page}")
     public ResponseEntity<ResponseDTO<List<Commit>>> getCommitsByPage(@PathVariable String owner,
                                                                       @PathVariable String projectName,
@@ -234,9 +237,10 @@ public class GuestController {
     //             FILE                 //
     //////////////////////////////////////
 
+
     // GET /api/guest/file/{id} : get file info
     @GetMapping("/file/{id}")
-    public ResponseEntity<ResponseDTO<File>> getFileMetadata(@PathVariable String id) {
+    public ResponseEntity<ResponseDTO<File>> getFile(@PathVariable String id) {
         try {
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseDTO<>(Boolean.TRUE,"",fileService.getFile(id)));
@@ -247,24 +251,29 @@ public class GuestController {
         }
     }
 
+
     // GET /api/guest/file/{id} : get file info
-    @GetMapping("/file/{username}/{projectName}/{path:**}")
-    public ResponseEntity<ResponseDTO<File>> getFileMetadata(
+    @GetMapping("/file/{username}/{projectName}/**")
+    public ResponseEntity<ResponseDTO<File>> getFile(
+            HttpServletRequest request,
             @PathVariable String username,
-            @PathVariable String projectName,
-            @PathVariable String path
+            @PathVariable String projectName
     ) {
-        System.out.println(path);
+        String prefix = username + "/" + projectName + "/";
+        String fullPath = request.getRequestURI();
+        String path = fullPath.substring(fullPath.indexOf(prefix) + prefix.length());
+//        System.out.println(path);
         try {
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseDTO<>(Boolean.TRUE,"",fileService.getFile(username,projectName,path)));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ResponseDTO<>(Boolean.FALSE,"Error searching user: "
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ResponseDTO<>(Boolean.FALSE,"Error searching file: "
                             + e.getMessage(),null));
         }
     }
 
+    // todo test
     // GET /api/guest/followers?username=username : get all user followers
     @GetMapping("/followers")
     public ResponseEntity<ResponseDTO<List<String>>> getFollowers(@RequestParam String username) {
@@ -278,6 +287,8 @@ public class GuestController {
         }
     }
 
+
+    // todo test
     // GET /api/guest/follows?username=username : get all followed by user
     @GetMapping("/follows/{username}")
     public ResponseEntity<ResponseDTO<List<String>>> getFollows(@PathVariable String username) {
@@ -291,8 +302,8 @@ public class GuestController {
         }
     }
 
-    // questi rimangono commentati per il momento
 
+    // todo test
     // GET /api/guest/leaderboard/projects : get all time leaderboard (progetti con la media piu' alta)
     @GetMapping("/leaderboard")
     public ResponseEntity<ResponseDTO<List<LeaderboardProjectDTO>>> allTimeLeaderboard() {
@@ -306,6 +317,7 @@ public class GuestController {
         }
     }
 
+    // todo test
     // GET /api/guest/leaderboard/{monthts} : get all time leaderboard (progetti con la media
     // piu' alta negli ultimi months months)
     @GetMapping("/leaderboard/{months}")
@@ -330,7 +342,7 @@ public class GuestController {
             return ResponseEntity
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ResponseDTO<>(false,
-                            "Error computing all-time leaderboard: " + e.getMessage(),
+                            "Error computing all-time contribution leaderboard: " + e.getMessage(),
                             null));
         }
     }
@@ -346,54 +358,64 @@ public class GuestController {
             return ResponseEntity
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ResponseDTO<>(false,
-                            "Error computing last " + months + " months leaderboard: "
+                            "Error computing last " + months + " months contribution leaderboard: "
                                     + e.getMessage(),
                             null));
         }
     }
 
 
-    // GET /api/guest/contributors?projectId=projectId : get leaderboard of contributors for project (all-time)
-    @GetMapping("/contributors")
+    // GET /api/guest/contributors/{projectId} : get leaderboard of contributors for project
+    @GetMapping("/contributors/{projectId}/{months}")
     public ResponseEntity<ResponseDTO<List<ContribDTO>>> getAllTimeContributors(
-            @RequestParam String projectId
+            @PathVariable String projectId,
+            @PathVariable Integer months
     ) {
+        if (months == null) {
+            months = 0;
+        }
         try {
-            List<ContribDTO> board = projectService.allTimeContributors(projectId);
+            List<ContribDTO> board = projectService.allTimeContributorsId(projectId,months);
             return ResponseEntity.ok(new ResponseDTO<>(true, "", board));
         } catch (Exception e) {
             return ResponseEntity
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ResponseDTO<>(false,
-                            "Error computing all-time leaderboard: " + e.getMessage(),
+                            "Error computing all-time leaderboard for project " + projectId
+                                    + ": " + e.getMessage(),
                             null));
         }
     }
 
 
-    // GET /api/guest/contributors/{months}?projectId=projectId : get leaderboard of contributors for project
-    // last months months
-    @GetMapping("/contributors/{months}")
-    public ResponseEntity<ResponseDTO<List<ContribDTO>>> getRecentContributors(
-            @PathVariable int months,
-            @RequestParam String projectId
+    // GET /api/guest/contributors/{owner}/{projectName}?months=months : get leaderboard of contributors for project
+    @GetMapping("/contributors/{owner}/{projectName}/{months}")
+    public ResponseEntity<ResponseDTO<List<ContribDTO>>> getAllTimeContributors(
+            @PathVariable String owner,
+            @PathVariable String projectName,
+            @PathVariable Integer months
     ) {
+        if (months == null) {
+            months = 0;
+        }
         try {
-            List<ContribDTO> board = projectService.lastMonthsContributors(projectId, months);
+            List<ContribDTO> board = projectService.allTimeContributorsOwnerProjectName(owner, projectName, months);
             return ResponseEntity.ok(new ResponseDTO<>(true, "", board));
         } catch (Exception e) {
             return ResponseEntity
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ResponseDTO<>(false,
-                            "Error computing all-time leaderboard: " + e.getMessage(),
+                            "Error computing all-time leaderboard for project /" + owner +
+                            '/' + projectName + ": " + e.getMessage(),
                             null));
         }
     }
 
+    // todo vedere se cambiare, aggiungere altro metodo con owner e projectName e test
     // GET /api/guest/dependencies?projectId=projectId : list all 1st level dependencies for project
-    @GetMapping("/dependencies")
+    @GetMapping("/dependencies/{projectId}")
     public ResponseEntity<ResponseDTO<List<String>>> getFirstLevelDependencies(
-            @RequestParam String projectId
+            @PathVariable String projectId
     ) {
         try {
             List<String> deps = projectService.getFirstLevelDeps(projectId);
@@ -407,10 +429,11 @@ public class GuestController {
         }
     }
 
+    // todo vedere se cambiare, aggiungere altro metodo con owner e projectName e test
     // GET /api/guest/dependencies/recursive?projectId=projectId : list all project dependencies (first 200)
-    @GetMapping("/dependencies/recursive")
+    @GetMapping("/dependencies/recursive/{projectId}")
     public ResponseEntity<ResponseDTO<List<String>>> getRecursiveDependencies(
-            @RequestParam String projectId
+            @PathVariable String projectId
     ) {
         try {
             List<String> deps = projectService.getAllRecursiveDeps(projectId);
@@ -423,10 +446,12 @@ public class GuestController {
                             null));
         }
     }
+
+    // todo vedere se cambiare, aggiungere altro metodo con owner e projectName e test
     // GET /api/guest/dependencies/recursive/{page}?projectId=projectId : list all project dependencies in pages of 100
-    @GetMapping("/dependencies/recursive/{page}")
+    @GetMapping("/dependencies/recursive/{projectId}/{page}")
     public ResponseEntity<ResponseDTO<List<String>>> getRecursiveDependenciesPaginated(
-            @RequestParam String projectId,
+            @PathVariable String projectId,
             @PathVariable int page
     ) {
         try {
@@ -441,11 +466,11 @@ public class GuestController {
         }
     }
 
-    // GET /api/guest/methods : list all project methods
-    // query parameters: projectId
-    @GetMapping("/methods")
+    // todo vedere se cambiare, aggiungere altro metodo con owner e projectName e test
+    // GET /api/guest/methods/{projectId} : list all project methods
+    @GetMapping("/methods/{projectId}")
     public ResponseEntity<ResponseDTO<List<String>>> getProjectMethods(
-            @RequestParam String projectId
+            @PathVariable String projectId
     ) {
         try {
             List<String> methods = projectService.getAllMethods(projectId);
@@ -459,16 +484,16 @@ public class GuestController {
         }
     }
 
-    // GET /api/guest/methods/{page} : list all project methods in pages of 100
-    // query parameters: projectId
-    @GetMapping("/methods/{page}")
+    // todo vedere se cambiare, aggiungere altro metodo con owner e projectName e test
+    // GET /api/guest/methods/{projectId}/{page} : list all project methods in pages of 100
+    @GetMapping("/methods/{projectId}/{page}")
     public ResponseEntity<ResponseDTO<List<String>>> getProjectMethodsPaginated(
-            @RequestParam String projectId,
+            @PathVariable String projectId,
             @PathVariable int page
     ) {
         try {
             List<String> methods = projectService.getAllMethodsPaginated(projectId,page);
-            return ResponseEntity.ok(new ResponseDTO<>(true, "", methods));
+            return ResponseEntity.ok(new ResponseDTO<>(true, "Methods found", methods));
         } catch (Exception e) {
             return ResponseEntity
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -477,6 +502,4 @@ public class GuestController {
                             null));
         }
     }
-
-
 }

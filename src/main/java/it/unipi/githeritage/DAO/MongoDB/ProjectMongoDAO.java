@@ -1,10 +1,8 @@
 package it.unipi.githeritage.DAO.MongoDB;
 
-import it.unipi.githeritage.DTO.ContribDTO;
-import it.unipi.githeritage.DTO.LeaderboardProjectDTO;
-import it.unipi.githeritage.DTO.ProjectDTO;
-import it.unipi.githeritage.DTO.UserActivityDistributionDTO;
+import it.unipi.githeritage.DTO.*;
 import it.unipi.githeritage.Model.MongoDB.Project;
+import it.unipi.githeritage.Model.MongoDB.User;
 import it.unipi.githeritage.Repository.MongoDB.MongoProjectRepository;
 import org.springframework.data.mongodb.core.aggregation.ArrayOperators.Filter;
 
@@ -31,73 +29,35 @@ public class ProjectMongoDAO {
     @Autowired
     private MongoProjectRepository repo;
 
-    public UserActivityDistributionDTO getUserActivityDistribution(String username) {
+    public List<DailyCommitCountDTO> getUserDailyActivity(String username){
+        try {
+            Instant now = Instant.now();
+            Instant start = now.minus(364, ChronoUnit.DAYS).truncatedTo(ChronoUnit.DAYS);
 
-        // 1. intervallo [start, now]
-        Instant now   = Instant.now();
-        Instant start = now.minus(364, ChronoUnit.DAYS).truncatedTo(ChronoUnit.DAYS);
+            Aggregation aggregation = Aggregation.newAggregation(
+                    User.class,
+                    Aggregation.match(Criteria.where("_id").is(username)),
+                    Aggregation.lookup("Commits", "commitIds", "_id", "commits"),
+                    Aggregation.unwind("commits"),
+                    Aggregation.match(
+                            Criteria.where("commits.timestamp").gte(start).lte(now)
+                    ),
+                    Aggregation.project()
+                            .andExpression("{$dateToString: {format: '%Y-%m-%d', date: '$commits.timestamp'}}")
+                            .as("day"),
+                    Aggregation.group("day").count().as("count"),
+                    Aggregation.project("count").and("day").previousOperation(),
+                    Aggregation.sort(Sort.by(Sort.Direction.ASC, "day"))
+            );
 
-        // 2. project #1: filtro commits per autore e range
-        ProjectionOperation filtCommits = Aggregation.project()
-                .and(
-                        Filter.filter("commits")
-                                .as("c")
-                                .by(BooleanOperators.And.and(
-                                        ComparisonOperators.Eq.valueOf("c.author").equalToValue(username),
-                                        ComparisonOperators.Gte.valueOf("c.timestamp").greaterThanEqualToValue(start),
-                                        ComparisonOperators.Lte.valueOf("c.timestamp").lessThanEqualToValue(now)
-                                ))
-                ).as("commits");
+            AggregationResults<DailyCommitCountDTO> results =
+                    mongoTemplate.aggregate(aggregation, User.class, DailyCommitCountDTO.class);
 
-        // 3. unwind
-        UnwindOperation unwind = Aggregation.unwind("commits");
+            return results.getMappedResults();
 
-        // 4. project #2: estraggo il campo "day" formattando commits.timestamp in "YYYY-MM-DD"
-        ProjectionOperation projectDay = Aggregation.project()
-                // costruisce il campo day
-                .and(DateOperators.DateToString.dateOf("commits.timestamp")
-                        .toString("%Y-%m-%d"))
-                .as("day");
-
-        // 5. group per quel campo "day"
-        GroupOperation group = Aggregation.group("day")
-                .count().as("count");
-
-        // 6. sort per _id (che è il day string)
-        SortOperation sort = Aggregation.sort(Sort.by("_id").ascending());
-
-        // 7. eseguo la pipeline
-        Aggregation agg = Aggregation.newAggregation(
-                filtCommits,
-                unwind,
-                projectDay,
-                group,
-                sort
-        );
-        AggregationResults<Document> results =
-                mongoTemplate.aggregate(agg, "Projects", Document.class);
-
-        // 8. preparo mappa di 365 giorni a zero
-        Map<LocalDate,Integer> distribution = new LinkedHashMap<>();
-        LocalDate today     = LocalDate.now();
-        LocalDate startDate = today.minusDays(364);
-        for (LocalDate d = startDate; !d.isAfter(today); d = d.plusDays(1)) {
-            distribution.put(d, 0);
+        } catch (Exception e) {
+            throw new RuntimeException("Error while computing user commit activity: " + e.getMessage(), e);
         }
-
-        // 9. sovrascrivo con i conteggi ritornati
-        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-        for (Document doc : results.getMappedResults()) {
-            String dayStr = doc.getString("_id");          // es. "2025-06-17"
-            int    cnt    = doc.getInteger("count", 0);
-            LocalDate day = LocalDate.parse(dayStr, fmt);
-            distribution.put(day, cnt);
-        }
-
-        // 10. compilo e restituisco il DTO
-        UserActivityDistributionDTO dto = new UserActivityDistributionDTO();
-        dto.setDailyCommits(distribution);
-        return dto;
     }
 
     public List<LeaderboardProjectDTO> getAllTimeLeaderboard() {
@@ -118,9 +78,9 @@ public class ProjectMongoDAO {
     public List<LeaderboardProjectDTO> getLeaderboardLastMonths(int months) {
         Instant cutoff = Instant.now().minus(months, ChronoUnit.MONTHS);
         Aggregation agg = Aggregation.newAggregation(
-                // “srotola” l’array dei commenti
+                // unwind dei commenti
                 Aggregation.unwind("comments"),
-                // filtra per timestamp dei commenti
+                // filtra per timestamp dei commenti (anticipare il piu' possibile le match)
                 Aggregation.match(Criteria.where("comments.timestamp").gte(cutoff)),
                 Aggregation.group("_id")
                         .first("_id").as("projectId")
@@ -136,75 +96,118 @@ public class ProjectMongoDAO {
 
     public List<ContribDTO> getAllTimeContriboard() {
         Aggregation agg = Aggregation.newAggregation(
-                // 1) “srotola” l’array commits
-                Aggregation.unwind("commits"),
-                // 2) raggruppa per commits.username, somma linesAdded
-                Aggregation.group("commits.username")
-                        .sum("commits.linesAdded").as("linesAdded"),
-                // 3) proietta nei campi del DTO
-                Aggregation.project("linesAdded")
+                // 1. Group by author
+                Aggregation.group("author")
+                        .sum("linesAdded").as("linesAdded")
+                        .max("timestamp").as("lastContribution"),
+                // 2. Project fields
+                Aggregation.project("linesAdded", "lastContribution")
                         .and("_id").as("username"),
-                // 4) ordina decrescente
-                Aggregation.sort(Sort.Direction.DESC, "linesAdded")
+                // 3. Sort descending
+                Aggregation.sort(Sort.Direction.DESC, "linesAdded"),
+                // 4. Limit to top 100
+                Aggregation.limit(100)
         );
 
         return mongoTemplate
-                .aggregate(agg, "Projects", ContribDTO.class)
+                .aggregate(agg, "Commits", ContribDTO.class)
                 .getMappedResults();
     }
 
     public List<ContribDTO> getLastMonthsContriboard(int months) {
-        Date threshold = Date.from(Instant.now().minus(months, ChronoUnit.MONTHS));
+        Instant threshold = Instant.now().minus(months, ChronoUnit.MONTHS);
 
         Aggregation agg = Aggregation.newAggregation(
-                Aggregation.unwind("commits"),
-                // filtra solo i commit più recenti di threshold
-                Aggregation.match(Criteria.where("commits.timestamp").gte(threshold)),
-                Aggregation.group("commits.username")
-                        .sum("commits.linesAdded").as("linesAdded"),
-                Aggregation.project("linesAdded")
+                // 1. filtri sui commit recenti
+                Aggregation.match(Criteria.where("timestamp").gte(threshold)),
+                // 2. Group by author
+                Aggregation.group("author")
+                        .sum("linesAdded").as("linesAdded")
+                        .max("timestamp").as("lastContribution"),
+                // 3. Project
+                Aggregation.project("linesAdded", "lastContribution")
                         .and("_id").as("username"),
-                Aggregation.sort(Sort.Direction.DESC, "linesAdded")
+                // 4. Sort + limit
+                Aggregation.sort(Sort.Direction.DESC, "linesAdded"),
+                Aggregation.limit(100)
         );
+
+        return mongoTemplate
+                .aggregate(agg, "Commits", ContribDTO.class)
+                .getMappedResults();
+    }
+
+    public List<ContribDTO> getAllTimeByProject(String projectId, int months) {
+        List<AggregationOperation> pipeline = new ArrayList<>();
+
+        // 1. Match progetto
+        pipeline.add(Aggregation.match(Criteria.where("_id").is(projectId)));
+
+        // 2. Lookup dei commit
+        pipeline.add(Aggregation.lookup("Commits", "commitIds", "_id", "commitList"));
+
+        // 3. Unwind
+        pipeline.add(Aggregation.unwind("commitList"));
+
+        // 4. (Opzionale) Filtro temporale sui commit
+        if (months > 0) {
+            Instant threshold = Instant.now().minus(months, ChronoUnit.MONTHS);
+            pipeline.add(Aggregation.match(Criteria.where("commitList.timestamp").gte(threshold)));
+        }
+
+        // 5. Group per autore
+        pipeline.add(Aggregation.group("commitList.author")
+                .sum("commitList.linesAdded").as("linesAdded")
+                .max("commitList.timestamp").as("lastContribution"));
+
+        // 6. Project
+        pipeline.add(Aggregation.project("linesAdded", "lastContribution")
+                .and("_id").as("username"));
+
+        // 7. Ordinamento e limite
+        pipeline.add(Aggregation.sort(Sort.Direction.DESC, "linesAdded"));
+        pipeline.add(Aggregation.limit(100));
+
+        Aggregation agg = Aggregation.newAggregation(pipeline);
 
         return mongoTemplate
                 .aggregate(agg, "Projects", ContribDTO.class)
                 .getMappedResults();
     }
 
-    public List<ContribDTO> getAllTimeByProject(String projectId) {
-        Aggregation agg = Aggregation.newAggregation(
-                // 0) filtra il progetto
-                Aggregation.match(Criteria.where("_id").is(projectId)),
-                // 1) unwind commits
-                Aggregation.unwind("commits"),
-                // 2) group by commits.username
-                Aggregation.group("commits.username")
-                        .sum("commits.linesAdded").as("linesAdded"),
-                // 3) project into DTO shape
-                Aggregation.project("linesAdded")
-                        .and("_id").as("username"),
-                // 4) sort desc
-                Aggregation.sort(Sort.Direction.DESC, "linesAdded")
-        );
-        return mongoTemplate
-                .aggregate(agg, "Projects", ContribDTO.class)
-                .getMappedResults();
-    }
+    public List<ContribDTO> getAllTimeByProject(String owner, String projectName, int months) {
+        List<AggregationOperation> pipeline = new ArrayList<>();
 
+        // 1. Match progetto
+        pipeline.add(Aggregation.match(Criteria.where("owner").is(owner).and("name").is(projectName)));
 
-    public List<ContribDTO> getLastMonthsByProject(String projectId, int months) {
-        Date threshold = Date.from(Instant.now().minus(months, ChronoUnit.MONTHS));
-        Aggregation agg = Aggregation.newAggregation(
-                Aggregation.match(Criteria.where("_id").is(projectId)),
-                Aggregation.unwind("commits"),
-                Aggregation.match(Criteria.where("commits.timestamp").gte(threshold)),
-                Aggregation.group("commits.username")
-                        .sum("commits.linesAdded").as("linesAdded"),
-                Aggregation.project("linesAdded")
-                        .and("_id").as("username"),
-                Aggregation.sort(Sort.Direction.DESC, "linesAdded")
-        );
+        // 2. Lookup dei commit
+        pipeline.add(Aggregation.lookup("Commits", "commitIds", "_id", "commitList"));
+
+        // 3. Unwind
+        pipeline.add(Aggregation.unwind("commitList"));
+
+        // 4. (Opzionale) Filtro temporale sui commit
+        if (months > 0) {
+            Instant threshold = Instant.now().minus(months, ChronoUnit.MONTHS);
+            pipeline.add(Aggregation.match(Criteria.where("commitList.timestamp").gte(threshold)));
+        }
+
+        // 5. Group per autore
+        pipeline.add(Aggregation.group("commitList.author")
+                .sum("commitList.linesAdded").as("linesAdded")
+                .max("commitList.timestamp").as("lastContribution"));
+
+        // 6. Project
+        pipeline.add(Aggregation.project("linesAdded", "lastContribution")
+                .and("_id").as("username"));
+
+        // 7. Ordinamento e limite
+        pipeline.add(Aggregation.sort(Sort.Direction.DESC, "linesAdded"));
+        pipeline.add(Aggregation.limit(100));
+
+        Aggregation agg = Aggregation.newAggregation(pipeline);
+
         return mongoTemplate
                 .aggregate(agg, "Projects", ContribDTO.class)
                 .getMappedResults();

@@ -48,8 +48,8 @@ public class UserMongoDAO {
         if (newUser.getRegistrationDate() == null) {
             newUser.setRegistrationDate(Instant.now());
         }
-        newUser.setComments(null);
-        newUser.setProjects(null);
+        newUser.setCommentIds(null);
+        newUser.setProjectIds(null);
         newUser.setIsAdmin(false);
         newUser.setFollowerNumber(0);
         newUser.setFollowingNumber(0);

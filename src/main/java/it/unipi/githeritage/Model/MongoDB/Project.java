@@ -32,25 +32,28 @@ public class Project {
     private String owner;
     private String version;
     private Instant creationDate;
+
     private List<String> administrators;
     private List<String> fileIds;
-
-    // array of comments
+    private List<String> commitIds;
     private List<Comment> comments;
 
+    // todo non fare document embedding con i commit ma fare document linking
     // reference to commits
-    private List<Commit> commits;
 
-    public ProjectDTO toDTO(Project project) {
-        ProjectDTO projectDTO = new ProjectDTO();
-        projectDTO.setId(project.getId());
-        projectDTO.setName(project.getName());
-        projectDTO.setDescription(project.getDescription());
-        projectDTO.setOwner(project.getOwner());
-        projectDTO.setVersion(project.getVersion());
-        projectDTO.setCreationDate(project.getCreationDate());
-        projectDTO.setAdministrators(project.getAdministrators());
-        return projectDTO;
+    public static ProjectDTO toDTO(Project project) {
+        ProjectDTO dto = new ProjectDTO();
+        dto.setId(project.getId());
+        dto.setName(project.getName());
+        dto.setDescription(project.getDescription());
+        dto.setOwner(project.getOwner());
+        dto.setVersion(project.getVersion());
+        dto.setCreationDate(project.getCreationDate());
+        dto.setAdministrators(project.getAdministrators());
+        dto.setComments(project.getComments());
+        dto.setCommitsCount(project.getCommitIds() != null ? project.getCommitIds().size() : 0);
+        dto.setFilesCount(project.getFileIds() != null ? project.getFileIds().size() : 0);
+        return dto;
     }
 
     public static Project fromDTO(ProjectDTO projectDTO) {
@@ -62,6 +65,7 @@ public class Project {
         project.setVersion(projectDTO.getVersion());
         project.setCreationDate(projectDTO.getCreationDate());
         project.setAdministrators(projectDTO.getAdministrators());
+        project.setComments(projectDTO.getComments());
         return project;
     }
 }

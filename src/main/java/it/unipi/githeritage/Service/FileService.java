@@ -26,7 +26,7 @@ public class FileService {
 
     public File getFile(String username, String projectName, String path) {
         return mongoFileRepository.findByOwnerAndProjectNameAndPath(username,projectName,path)
-                .orElse(null);
+                .orElseThrow(() -> new RuntimeException("No file found"));
     }
 
 //    public File addFile(File File, String authenticatedUsername) {

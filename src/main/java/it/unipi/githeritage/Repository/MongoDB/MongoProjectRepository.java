@@ -7,5 +7,5 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import java.util.Optional;
 
 public interface MongoProjectRepository extends MongoRepository<Project, String> {
-    Optional<ProjectDTO> findByOwnerAndName(String username, String projectName);
+    Optional<Project> findByOwnerAndName(String username, String projectName);
 }

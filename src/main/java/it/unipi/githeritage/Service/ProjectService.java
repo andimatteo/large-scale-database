@@ -3,6 +3,8 @@ package it.unipi.githeritage.Service;
 import com.google.common.collect.Sets;
 import com.mongodb.client.ClientSession;
 import com.mongodb.client.MongoClient;
+import io.netty.channel.unix.RawUnixChannelOption;
+import it.unipi.githeritage.DAO.MongoDB.CommitMongoDAO;
 import it.unipi.githeritage.DAO.MongoDB.ProjectMongoDAO;
 import it.unipi.githeritage.DAO.Neo4j.Neo4jDAO;
 import it.unipi.githeritage.DTO.*;
@@ -61,7 +63,9 @@ public class ProjectService {
     @Autowired
     private NeoMethodRepository neoMethodRepository;
 
-    // create a new project
+    @Autowired
+    private CommitMongoDAO commitMongoDAO;
+
     public ProjectDTO addProject(ProjectDTO projectDTO) {
         ClientSession session = mongoClient.startSession();
         ProjectDTO newProject = null;
@@ -86,61 +90,51 @@ public class ProjectService {
         }
     }
 
-    // todo rimuovere i commits dal risultato della query (projection)
     public ProjectDTO getProjectById(String id) {
         Optional<Project> opt = mongoProjectRepository.findById(id);
-        return opt.isPresent() ? opt.get().toDTO(opt.get()) : null; // TODO controllare che abbia senso
+        if (opt.isEmpty()) {
+            throw new RuntimeException("Project with id " + id + " not found");
+        }
+        Project project = opt.get();
+        ProjectDTO dto = project.toDTO(project);
+        dto.setCommitsCount(project.getCommitIds() != null ? project.getCommitIds().size() : 0);
+        dto.setFilesCount(project.getFileIds() != null ? project.getFileIds().size() : 0);
+        dto.setComments(project.getComments()); // opzionale, se già presenti
+        return dto;
     }
 
-    // todo rimuovere i commits dal risultato della query (projection)
-    public Optional<ProjectDTO> getProjectByOwnerAndName(String username, String projectName) {
-        return mongoProjectRepository.findByOwnerAndName(username,projectName);
+
+    public ProjectDTO getProjectByOwnerAndName(String username, String projectName) {
+        Optional<Project> opt = mongoProjectRepository.findByOwnerAndName(username, projectName);
+        if (opt.isEmpty()) {
+            throw new RuntimeException("Project /" + username + '/' + projectName + " not found");
+        }
+        Project project = opt.get();
+        ProjectDTO dto = project.toDTO(project);
+        dto.setCommitsCount(project.getCommitIds() != null ? project.getCommitIds().size() : 0);
+        dto.setFilesCount(project.getFileIds() != null ? project.getFileIds().size() : 0);
+        dto.setComments(project.getComments()); // opzionale, se già presenti
+        return dto;
     }
 
-    public List<Commit> getLast40Commits(String id) {
-        return mongoProjectRepository.findById(id)
-                .map(project -> project.getCommits().stream()
-                        .sorted(Comparator.comparing(Commit::getTimestamp).reversed())
-                        .limit(40)
-                        .toList())
-                .orElse(List.of());
+    public List<Commit> getLast100Commits(String projectId) {
+        return commitMongoDAO.getCommitsPaginated(projectId,0,100);
     }
 
-    public List<Commit> getLast40Commits(String owner, String projectName) {
-        return mongoProjectRepository.findByOwnerAndName(owner,projectName)
-                .map(project -> project.getCommits().stream()
-                        .sorted(Comparator.comparing(Commit::getTimestamp).reversed())
-                        .limit(40)
-                        .toList())
-                .orElse(List.of());
+    public List<Commit> getLast100Commits(String owner, String projectName) {
+        return commitMongoDAO.getCommitsPaginated(owner,projectName,0,100);
     }
 
-    public List<Commit> getCommitsByPage(String id, int page) {
-        int skip = page * 20;
-
-        return mongoProjectRepository.findById(id)
-                .map(project -> project.getCommits().stream()
-                        .sorted(Comparator.comparing(Commit::getTimestamp).reversed())
-                        .skip(skip)
-                        .limit(20)
-                        .toList())
-                .orElse(List.of());
+    public List<Commit> getCommitsByPage(String projectId, int page) {
+        return commitMongoDAO.getCommitsPaginated(projectId,page,100);
     }
 
     public List<Commit> getCommitsByPage(String owner, String projectName, int page) {
-        int skip = page * 20;
-
-        return mongoProjectRepository.findByOwnerAndName(owner,projectName)
-                .map(project -> project.getCommits().stream()
-                        .sorted(Comparator.comparing(Commit::getTimestamp).reversed())
-                        .skip(skip)
-                        .limit(20)
-                        .toList())
-                .orElse(List.of());
+        return commitMongoDAO.getCommitsPaginated(owner,projectName,page,100);
     }
 
-    public UserActivityDistributionDTO getUserActivityDistribution(String username) {
-        return projectMongoDAO.getUserActivityDistribution(username);
+    public List<DailyCommitCountDTO> getUserActivityDistribution(String username) {
+        return projectMongoDAO.getUserDailyActivity(username);
     }
 
     public List<LeaderboardProjectDTO> getAllTimeLeaderboard() {
@@ -159,12 +153,12 @@ public class ProjectService {
         return projectMongoDAO.getLastMonthsContriboard(months);
     }
 
-    public List<ContribDTO> allTimeContributors(String projectId) {
-        return projectMongoDAO.getAllTimeByProject(projectId);
+    public List<ContribDTO> allTimeContributorsId(String projectId, int months) {
+        return projectMongoDAO.getAllTimeByProject(projectId,months);
     }
 
-    public List<ContribDTO> lastMonthsContributors(String projectId, int months) {
-        return projectMongoDAO.getLastMonthsByProject(projectId, months);
+    public List<ContribDTO> allTimeContributorsOwnerProjectName(String owner, String projectName, int months) {
+        return projectMongoDAO.getAllTimeByProject(owner,projectName,months);
     }
 
     public List<String> getFirstLevelDeps(String projectId) {
@@ -204,7 +198,7 @@ public class ProjectService {
                                     String projectName,
                                     String authenticatedUser) {
         // cerco in Mongo con owner+name
-        ProjectDTO project = mongoProjectRepository
+        Project project = mongoProjectRepository
                 .findByOwnerAndName(owner, projectName)
                 .orElseThrow(() -> new RuntimeException("Project not found"));
         // delego all’altro overload
@@ -455,7 +449,6 @@ public class ProjectService {
 
             // 4) registra un nuovo Commit
             Commit commit = new Commit();
-            commit.setAuthor(username);
             commit.setFilesModified(filesModified);
             commit.setLinesAdded(linesAdded);
             commit.setLinesDeleted(linesDeleted);
@@ -483,7 +476,7 @@ public class ProjectService {
             String projectName = commitOwnerDTOt.getProjectName();
 
             // 1) prendi il progetto e controlla che esista e che l’utente sia admin
-            ProjectDTO project = mongoProjectRepository.findByOwnerAndName(owner, projectName)
+            Project project = mongoProjectRepository.findByOwnerAndName(owner, projectName)
                     .orElseThrow(() -> new RuntimeException("Project not found"));
 
             String projectId = project.getId();
@@ -678,7 +671,6 @@ public class ProjectService {
 
             // 4) registra un nuovo Commit
             Commit commit = new Commit();
-            commit.setAuthor(username);
             commit.setFilesModified(filesModified);
             commit.setLinesAdded(linesAdded);
             commit.setLinesDeleted(linesDeleted);
@@ -686,7 +678,7 @@ public class ProjectService {
             mongoCommitRepository.save(commit);
 
             session.commitTransaction();
-            return project;
+            return ProjectDTO.fromProject(project);
 
         } catch (Exception e) {
             session.abortTransaction();

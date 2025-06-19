@@ -51,14 +51,19 @@ public class UserController {
             CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
             //System.out.println("Authenticated user: " + authenticatedUser);
             String authenticatedUsername = authenticatedUser.getUsername();
-
-            // todo add admin can do this operation on all users
+            Boolean isAdmin = authenticatedUser.getIsAdmin();
 
             if (authenticatedUsername == null) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body(new ResponseDTO<>(false, "Not logged in", null));
             }
-            
+
+            // check if user is editing another user and user is not admin, otherwise return
+            if ( !isAdmin && !authenticatedUsername.equals(userDTO.getUsername())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ResponseDTO<>(false, "You cannot edit another user's info", null));
+            }
+
             userDTO.setUsername(authenticatedUsername);
             userDTO.setIsAdmin(null); // Ensure isAdmin is not modified
             
@@ -79,12 +84,11 @@ public class UserController {
             CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
             String authenticatedUsername = authenticatedUser.getUsername();
 
-            // todo add admin can do this operation on all users
-
             if (authenticatedUsername == null) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body(new ResponseDTO<>(false, "Not logged in", null));
             }
+
             UserDTO dto = userService.deleteUser(authenticatedUsername);
             return ResponseEntity.ok(new ResponseDTO<>(true, "User deleted successfully", dto));
         } catch (Exception e) {
@@ -98,7 +102,7 @@ public class UserController {
     //////////////////////////////////////
 
 
-    // todo: quando modifico file e creo methods vanno aggiornati tutti i methods verso cui creo un arco e cosi' via...
+    // todo: quando modifico file e creo methods vanno aggiornati tutti i methods verso cui creo un  arco e cosi' via...
     // POST /api/user/project : create new project
     // query parameters: projectDTO
     @PostMapping("/project")
