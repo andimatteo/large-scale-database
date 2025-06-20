@@ -31,3 +31,8 @@ build/
 
 ### VS Code ###
 .vscode/
+.env
+
+/scraped_data/downloaded_repos/
+/scraped_data/*.json
+/scraped_data/*.log

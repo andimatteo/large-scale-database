@@ -19,6 +19,28 @@ public class Neo4jDAO {
         this.client = client;
     }
 
+    /**
+     * Creates a unique constraint on the username attribute of User nodes
+     * to improve query performance and ensure username uniqueness
+     */
+    public void createUsernameIndex() {
+        client.query("CREATE CONSTRAINT IF NOT EXISTS FOR (u:User) REQUIRE u.username IS UNIQUE")
+              .run();
+    }
+
+    /**
+     * Creates a unique constraint on the id attribute of Project nodes
+     * to improve query performance and ensure project id uniqueness
+     */
+    public void createProjectIdIndex() {
+        client.query("CREATE CONSTRAINT IF NOT EXISTS FOR (p:Project) REQUIRE p.id IS UNIQUE")
+              .run();
+        client.query("CREATE CONSTRAINT IF NOT EXISTS FOR (m:Method) REQUIRE m.fullyQualifiedName IS UNIQUE")
+              .run();
+    }
+
+
+
     public List<String> firstLevelDependencies(String projectId) {
         String cypher = """
             MATCH (p:Project {id: $projectId})-[:DEPENDS_ON]->(d:Project)
@@ -184,11 +206,55 @@ public class Neo4jDAO {
                 .run();
     }
 
+    /**
+     * Efficiently merges multiple users at once using UNWIND
+     *
+     * @param usernames List of usernames to merge
+     */
+    public void mergeUsers(List<String> usernames) {
+        client.query("UNWIND $usernames AS username MERGE (u:User {username: username})")
+                .bind(usernames).to("usernames")
+                .run();
+    }
+
+    public void closeIdleConnections() {
+        try {
+            // Force immediate cleanup of idle connections
+            Runtime.getRuntime().gc();
+            Thread.sleep(50); // Brief pause to allow cleanup
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
     public void mergeProject(String projectId, String name) {
         client.query("MERGE (p:Project {id: $id, name: $name})")
                 .bind(projectId).to("id")
                 .bind(name).to("name")
                 .run();
+    }
+
+    /**
+     * Efficiently merges multiple projects at once using UNWIND
+     *
+     * @param projects List of maps containing project attributes (id, owner, projectName, administrators, packageName)
+     */
+    public void mergeProjects(List<Map<String, Object>> projects) {
+        client.query("""
+            UNWIND $projects AS proj
+            MERGE (p:Project {id: proj.id})
+            ON CREATE SET p.owner = proj.owner, p.projectName = proj.projectName, p.packageName = proj.packageName
+            ON MATCH SET p.owner = proj.owner, p.projectName = proj.projectName, p.packageName = proj.packageName
+            WITH p, proj
+            
+            // Then create COLLABORATES_ON relationships for all administrators
+            WITH p, proj
+            UNWIND proj.administrators AS admin
+            MATCH (u:User {username: admin})
+            MERGE (u)-[:COLLABORATES_ON]->(p)
+            """)
+            .bind(projects).to("projects")
+            .run();
     }
 
     public void relateUserToProject(String username, String projectId) {
@@ -276,11 +342,23 @@ public class Neo4jDAO {
 
     public void relateProjectDependency(String projectId, String depProjectId) {
         client.query("""
-            MATCH (p1:Project {id: $projectId}), (p2:Project {id: $depProjectId})
+            MERGE (p1:Project {id: $projectId})
+            MERGE (p2:Project {id: $depProjectId})
             MERGE (p1)-[:DEPENDS_ON]->(p2)
             """)
                 .bind(projectId).to("projectId")
                 .bind(depProjectId).to("depProjectId")
+                .run();
+    }
+
+    public void relateProjectDependencyByPackageName(String projectId, String packageName) {
+        client.query("""
+            MERGE (p:Project {id: $projectId})
+            MERGE (pkg:Project {packageName: $packageName})
+            MERGE (p)-[:DEPENDS_ON]->(pkg)
+            """)
+                .bind(projectId).to("projectId")
+                .bind(packageName).to("packageName")
                 .run();
     }
 
@@ -321,7 +399,7 @@ public class Neo4jDAO {
                 .bind(projectId).to("projectId")
                 .fetch().all()
                 .stream()
-                .map(m -> (String)m.get("sig"))
+                .map(m -> (String) m.get("sig"))
                 .collect(Collectors.toList());
     }
 
@@ -337,7 +415,7 @@ public class Neo4jDAO {
                 .bind(projectName).to("projectName")
                 .fetch().all()
                 .stream()
-                .map(m -> (String)m.get("sig"))
+                .map(m -> (String) m.get("sig"))
                 .collect(Collectors.toList());
     }
 
@@ -381,6 +459,25 @@ public class Neo4jDAO {
     }
 
     /**
+     * Efficiently creates multiple follow relationships at once using UNWIND
+     *
+     * @param followRelationships List of maps containing follower and followed usernames
+     */
+    public void followUsers(List<Map<String, String>> followRelationships) {
+        try {
+            client.query("""
+                UNWIND $relationships AS rel
+                MATCH (follower:User {username: rel.follower}), (followed:User {username: rel.followed})
+                MERGE (follower)-[:FOLLOWS]->(followed)
+                """)
+                    .bind(followRelationships).to("relationships")
+                    .run();
+        } finally {
+            closeIdleConnections();
+        }
+    }
+
+    /**
      * Distanza “follow” tra due utenti, considerando
      * la relazione FOLLOWS come non direzionale:
      * MATCH p = shortestPath((a)-[:FOLLOWS*]-(b))
@@ -395,7 +492,7 @@ public class Neo4jDAO {
                 .bind(userA).to("userA")
                 .bind(userB).to("userB")
                 .fetch().one()
-                .map(row -> ((Number)row.get("dist")).intValue())
+                .map(row -> ((Number) row.get("dist")).intValue())
                 .orElse(-1);
     }
 
@@ -513,5 +610,28 @@ public class Neo4jDAO {
                 .bind(username).to("username")
                 .bind(projectId).to("projectId")
                 .run();
+    }
+    public int countFollower(String username) {
+        String cypher = """
+            MATCH (:User)-[r:FOLLOWS]->(u:User {username: $username})
+            RETURN COUNT(r) AS followerCount
+            """;
+        return client.query(cypher)
+                .bind(username).to("username")
+                .fetch().one()
+                .map(row -> ((Number)row.get("followerCount")).intValue())
+                .orElse(0);
+    }
+
+    public int countFollowing(String username) {
+        String cypher = """
+            MATCH (u:User {username: $username})-[r:FOLLOWS]->(:User)
+            RETURN COUNT(r) AS followingCount
+            """;
+        return client.query(cypher)
+                .bind(username).to("username")
+                .fetch().one()
+                .map(row -> ((Number)row.get("followingCount")).intValue())
+                .orElse(0);
     }
 }

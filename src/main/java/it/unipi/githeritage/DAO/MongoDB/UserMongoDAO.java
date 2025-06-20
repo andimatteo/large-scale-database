@@ -108,6 +108,28 @@ public class UserMongoDAO {
         return editUser(newUser);
     }
 
+    public User editFollowRedundancy(User user) {
+        Update update = new Update();
+       
+        if (user.getFollowerNumber() != null) {
+            update.set("followerNumber", user.getFollowerNumber());
+        }
+        if (user.getFollowingNumber() != null) {
+            update.set("followingNumber", user.getFollowingNumber());
+        }
+        
+        if (!update.getUpdateObject().isEmpty()) {
+            Query query = new Query(Criteria.where("username").is(user.getUsername()));
+            mongoTemplate.updateFirst(query, update, User.class);
+        }
+        // Reload the updated user from the database
+        User updatedUser = repo.findById(user.getUsername())
+            .orElseThrow(() -> new RuntimeException("User not found: " + user.getUsername()));
+
+        return updatedUser;
+        
+    }
+
 //    public void deleteUser(String userId) {
 //        repo.deleteById(userId);
 //    }
