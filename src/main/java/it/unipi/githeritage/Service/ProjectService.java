@@ -68,23 +68,32 @@ public class ProjectService {
 
     public ProjectDTO addProject(ProjectDTO projectDTO) {
         ClientSession session = mongoClient.startSession();
-        ProjectDTO newProject = null;
+        Boolean neo = false;
         try {
             session.startTransaction();
             
             // Save the project in MongoDB first
+            if (mongoProjectRepository.existsByOwnerAndName(projectDTO.getOwner(),projectDTO.getName())) {
+                throw new RuntimeException("Project with same name already exists");
+            }
+
+            mongoProjectRepository.save(Project.fromDTO(projectDTO));
             
             // Save the project in Neo4j
             neo4jDAO.addProject(projectDTO);
+            neo = true;
 
             session.commitTransaction();
-            return newProject;
+
+            return projectDTO;
             
         } catch (Exception e) {
             session.abortTransaction();
-            // If Neo4j failed but MongoDB succeeded, we should handle cleanup
-            // For now, just return null
-            return null;
+            if (neo) {
+                throw new RuntimeException("Project creation succeded in Neo4j but failed in MongoDB, check for " +
+                        "consistency in database");
+            }
+            throw new RuntimeException(e.getMessage());
         } finally {
             session.close();
         }
@@ -165,20 +174,40 @@ public class ProjectService {
         return neo4jDAO.firstLevelDependencies(projectId);
     }
 
+    public List<String> getFirstLevelDeps(String owner, String projectName) {
+        return neo4jDAO.firstLevelDependencies(owner,projectName);
+    }
+
     public List<String> getAllRecursiveDeps(String projectId) {
         return neo4jDAO.recursiveDependencies(projectId);
+    }
+
+    public List<String> getAllRecursiveDeps(String owner, String projectName) {
+        return neo4jDAO.recursiveDependencies(owner,projectName);
     }
 
     public List<String> getAllRecursiveDepsPaginated(String projectId, int page) {
         return neo4jDAO.recursiveDependenciesPaginated(projectId,page);
     }
 
+    public List<String> getAllRecursiveDepsPaginated(String owner, String projectName, int page) {
+        return neo4jDAO.recursiveDependenciesPaginated(owner,projectName,page);
+    }
+
     public List<String> getAllMethods(String projectId) {
         return neo4jDAO.projectMethods(projectId);
     }
 
+    public List<String> getAllMethods(String owner, String projectName) {
+        return neo4jDAO.projectMethods(owner, projectName);
+    }
+
     public List<String> getAllMethodsPaginated(String projectId, int page) {
         return neo4jDAO.projectMethodsPaginated(projectId, page);
+    }
+
+    public List<String> getAllMethodsPaginated(String owner, String projectName, int page) {
+        return neo4jDAO.projectMethodsPaginated(owner, projectName, page);
     }
 
     public ProjectDTO deleteProject(String projectId, String authenticatedUser) {
@@ -247,7 +276,7 @@ public class ProjectService {
     }
 
     // todo finish update project
-    public Project updateProject(String projectId, CommitIdDTO commitIdDTO, String username) {
+    public Project updateProject(String projectId, CommitIdDTO commitIdDTO, String username, Boolean isAdmin) {
         ClientSession session = mongoClient.startSession();
         try {
             session.startTransaction();
@@ -259,7 +288,8 @@ public class ProjectService {
             String owner = project.getOwner();
             String projectName = project.getName();
 
-            if (!project.getAdministrators().contains(username)) {
+            // se utente non e' in lista di amministratori e non e' admin
+            if (!project.getAdministrators().contains(username) && !isAdmin) {
                 throw new RuntimeException("Forbidden: not an administrator");
             }
 

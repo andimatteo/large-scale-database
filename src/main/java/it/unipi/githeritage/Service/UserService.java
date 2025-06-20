@@ -47,6 +47,10 @@ public class UserService {
             // Save the user in MongoDB
             userDTO.setIsAdmin(false); // Default to non-admin
             //userDTO.setRegistrationDate(LocalDate.now()); // Set registration date to current date
+            if (mongoUserRepository.existsById(userDTO.getUsername())) {
+                throw new RuntimeException("Username already exists");
+            }
+
             UserDTO addedUser = UserDTO.fromUser(userMongoDAO.addUser(userDTO));
 
 
@@ -62,14 +66,15 @@ public class UserService {
                 throw new RuntimeException("Error adding data to moongoDB but Neo4j data added," +
                         "check for consistency: " + userDTO.getUsername());
             }
-            return null; // Return null or handle the error appropriately
+            throw new RuntimeException(e.getMessage());
         } finally {
             session.close();
         }
     }
 
-    public UserDTO deleteUser(String username) {
-        return mongoUserRepository.deleteByUsername(username);
+    public Long deleteUser(String username) {
+        return mongoUserRepository.deleteByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
     }
 
     public UserDTO getUserByUsername(String username) {
@@ -89,7 +94,8 @@ public class UserService {
     }
 
     public UserDTO getUser(String username) {
-        return mongoUserRepository.findByUsername(username);
+        return mongoUserRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found: " + username));
     }
 
     public List<String> getFollowersUsernames(String username) {

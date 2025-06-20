@@ -32,6 +32,20 @@ public class Neo4jDAO {
                 .collect(Collectors.toList());
     }
 
+    public List<String> firstLevelDependencies(String owner, String projectName) {
+        String cypher = """
+            MATCH (p:Project {owner: $owner, name: $projectName})-[:DEPENDS_ON]->(d:Project)
+            RETURN d.id AS depId
+            """;
+        return client.query(cypher)
+                .bind(owner).to("owner")
+                .bind(projectName).to("projectName")
+                .fetch().all()
+                .stream()
+                .map(m -> (String) m.get("depId"))
+                .collect(Collectors.toList());
+    }
+
     public List<String> recursiveDependencies(String projectId) {
         String cypher = """
             MATCH (p:Project {id: $projectId})-[:DEPENDS_ON*]->(d:Project)
@@ -40,6 +54,22 @@ public class Neo4jDAO {
             """;
         return client.query(cypher)
                 .bind(projectId).to("projectId")
+                .bind(200).to("limit")
+                .fetch().all()
+                .stream()
+                .map(m -> (String) m.get("depId"))
+                .collect(Collectors.toList());
+    }
+
+    public List<String> recursiveDependencies(String owner, String projectName) {
+        String cypher = """
+            MATCH (p:Project {owner: $owner, name: $projectName})-[:DEPENDS_ON*]->(d:Project)
+            RETURN DISTINCT d.id AS depId
+            LIMIT $limit
+            """;
+        return client.query(cypher)
+                .bind(owner).to("owner")
+                .bind(projectName).to("projectName")
                 .bind(200).to("limit")
                 .fetch().all()
                 .stream()
@@ -64,6 +94,24 @@ public class Neo4jDAO {
                 .collect(Collectors.toList());
     }
 
+    public List<String> recursiveDependenciesPaginated(String owner, String projectName, int page) {
+        String cypher = """
+            MATCH (p:Project {owner: $owner, name: $projectName})-[:DEPENDS_ON*1..]->(d:Project)
+            RETURN DISTINCT d.id AS dependencyId
+            SKIP $skip
+            LIMIT $limit
+            """;
+        return client.query(cypher)
+                .bind(owner).to("owner")
+                .bind(projectName).to("projectName")
+                .bind(page * PAGE_SIZE).to("skip")
+                .bind(PAGE_SIZE).to("limit")
+                .fetch().all()
+                .stream()
+                .map(row -> (String) row.get("dependencyId"))
+                .collect(Collectors.toList());
+    }
+
     public List<String> projectMethods(String projectId) {
         String cypher = """
             MATCH (p:Project {id: $projectId})-[:HAS_METHOD]->(m:Method)
@@ -72,6 +120,22 @@ public class Neo4jDAO {
             """;
         return client.query(cypher)
                 .bind(projectId).to("projectId")
+                .bind(200).to("limit")
+                .fetch().all()
+                .stream()
+                .map(m -> (String) m.get("sig"))
+                .collect(Collectors.toList());
+    }
+
+    public List<String> projectMethods(String owner, String projectName) {
+        String cypher = """
+            MATCH (p:Project {owner: $owner, name: $projectName})-[:HAS_METHOD]->(m:Method)
+            RETURN m.fullyQualifiedName AS sig
+            LIMIT $limit
+            """;
+        return client.query(cypher)
+                .bind(owner).to("owner")
+                .bind(projectName).to("projectName")
                 .bind(200).to("limit")
                 .fetch().all()
                 .stream()
@@ -96,14 +160,32 @@ public class Neo4jDAO {
                 .collect(Collectors.toList());
     }
 
+    public List<String> projectMethodsPaginated(String owner, String projectName, int page) {
+        String cypher = """
+            MATCH (p:Project {owner: $owner, name: $projectName})-[:HAS_METHOD]->(m:Method)
+            RETURN m.fullyQualifiedName AS sig
+            SKIP $skip
+            LIMIT $limit
+            """;
+        return client.query(cypher)
+                .bind(owner).to("owner")
+                .bind(projectName).to("projectName")
+                .bind(page * PAGE_SIZE).to("skip")
+                .bind(PAGE_SIZE).to("limit")
+                .fetch().all()
+                .stream()
+                .map(m -> (String) m.get("sig"))
+                .collect(Collectors.toList());
+    }
+
     public void mergeUser(String username) {
-        client.query("MERGE (u:User {username: $username})")
+        client.query("CREATE (u:User {username: $username})")
                 .bind(username).to("username")
                 .run();
     }
 
     public void mergeProject(String projectId, String name) {
-        client.query("MERGE (p:Project {id: $id, name: $name})")
+        client.query("CREATE (p:Project {id: $id, name: $name})")
                 .bind(projectId).to("id")
                 .bind(name).to("name")
                 .run();

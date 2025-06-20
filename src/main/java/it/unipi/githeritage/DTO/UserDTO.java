@@ -1,5 +1,6 @@
 package it.unipi.githeritage.DTO;
 
+import java.time.Instant;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -16,6 +17,7 @@ import lombok.NoArgsConstructor;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class UserDTO extends BaseDTO{
     private String username;
+
     private String password;
     private String email;
     private String name;
@@ -23,11 +25,12 @@ public class UserDTO extends BaseDTO{
     private String nationality;
     private Integer followerNumber;
     private Integer followingNumber;
-    private List<String> comments;
-    private List<String> projects;
     private Boolean isAdmin;
-    //@JsonFormat(pattern = "yyyy-MM-dd")
-    //private LocalDate registrationDate;
+    private Instant registrationDate;
+
+    private List<String> commentIds;
+    private List<String> projectIds;
+    private List<String> commitIds;
 
 
     public static UserDTO fromUser(User user) {
@@ -39,7 +42,7 @@ public class UserDTO extends BaseDTO{
         userDTO.setSurname(user.getSurname());
         userDTO.setFollowerNumber(user.getFollowerNumber());
         userDTO.setFollowingNumber(user.getFollowingNumber());
-        userDTO.setProjects(user.getProjectIds());
+        userDTO.setProjectIds(user.getProjectIds());
         userDTO.setIsAdmin(user.getIsAdmin());
         return userDTO;        
     }

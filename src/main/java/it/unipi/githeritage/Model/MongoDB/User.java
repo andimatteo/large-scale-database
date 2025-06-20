@@ -44,7 +44,7 @@ public class User {
         user.setSurname(userDTO.getSurname());
         user.setFollowerNumber(userDTO.getFollowerNumber());
         user.setFollowingNumber(userDTO.getFollowingNumber());
-        user.setProjectIds(userDTO.getProjects());
+        user.setProjectIds(userDTO.getProjectIds());
         user.setIsAdmin(userDTO.getIsAdmin());
         return user;
     }

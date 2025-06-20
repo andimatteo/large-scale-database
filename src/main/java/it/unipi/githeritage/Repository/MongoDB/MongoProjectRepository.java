@@ -8,4 +8,5 @@ import java.util.Optional;
 
 public interface MongoProjectRepository extends MongoRepository<Project, String> {
     Optional<Project> findByOwnerAndName(String username, String projectName);
+    Boolean existsByOwnerAndName(String username, String projectName);
 }

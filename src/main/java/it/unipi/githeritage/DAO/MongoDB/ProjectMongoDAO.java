@@ -1,9 +1,11 @@
 package it.unipi.githeritage.DAO.MongoDB;
 
+import io.netty.channel.unix.RawUnixChannelOption;
 import it.unipi.githeritage.DTO.*;
 import it.unipi.githeritage.Model.MongoDB.Project;
 import it.unipi.githeritage.Model.MongoDB.User;
 import it.unipi.githeritage.Repository.MongoDB.MongoProjectRepository;
+import it.unipi.githeritage.Repository.MongoDB.MongoUserRepository;
 import org.springframework.data.mongodb.core.aggregation.ArrayOperators.Filter;
 
 import org.bson.Document;
@@ -14,11 +16,11 @@ import org.springframework.data.mongodb.core.aggregation.*;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.stereotype.Repository;
 
-import java.time.Instant;
-import java.time.LocalDate;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Repository
 public class ProjectMongoDAO {
@@ -28,9 +30,16 @@ public class ProjectMongoDAO {
 
     @Autowired
     private MongoProjectRepository repo;
+    @Autowired
+    private MongoUserRepository mongoUserRepository;
 
     public List<DailyCommitCountDTO> getUserDailyActivity(String username){
         try {
+            // check if user exists
+            if (!mongoUserRepository.existsById(username)) {
+                throw new RuntimeException("User not found");
+            }
+
             Instant now = Instant.now();
             Instant start = now.minus(364, ChronoUnit.DAYS).truncatedTo(ChronoUnit.DAYS);
 
@@ -50,13 +59,31 @@ public class ProjectMongoDAO {
                     Aggregation.sort(Sort.by(Sort.Direction.ASC, "day"))
             );
 
+            // obtained results but days may be missing
             AggregationResults<DailyCommitCountDTO> results =
                     mongoTemplate.aggregate(aggregation, User.class, DailyCommitCountDTO.class);
 
-            return results.getMappedResults();
+            // fill all days
+            Map<LocalDate, Integer> counts = results.getMappedResults().stream()
+                    .collect(Collectors.toMap(
+                            r -> LocalDate.parse(r.getDay()),  // day in formato "YYYY-MM-DD"
+                            DailyCommitCountDTO::getCount));
+
+
+            List<DailyCommitCountDTO> complete = new ArrayList<>(365);
+            LocalDate cursor = start.atZone(ZoneOffset.UTC).toLocalDate();  // oppure ZoneId.of("Europe/Rome")
+            LocalDate end    = now.atZone(ZoneOffset.UTC).toLocalDate();
+
+            while (!cursor.isAfter(end)) {
+                int c = counts.getOrDefault(cursor, 0);              // 0 se mancante
+                complete.add(new DailyCommitCountDTO(cursor.toString(), c));
+                cursor = cursor.plusDays(1);
+            }
+
+            return complete;
 
         } catch (Exception e) {
-            throw new RuntimeException("Error while computing user commit activity: " + e.getMessage(), e);
+            throw new RuntimeException(e.getMessage());
         }
     }
 
@@ -76,7 +103,13 @@ public class ProjectMongoDAO {
     }
 
     public List<LeaderboardProjectDTO> getLeaderboardLastMonths(int months) {
-        Instant cutoff = Instant.now().minus(months, ChronoUnit.MONTHS);
+        ZoneId zone = ZoneOffset.UTC;
+        Instant cutoff = ZonedDateTime.now(zone)
+                .minusMonths(months)
+                .truncatedTo(ChronoUnit.DAYS)
+                .toInstant();
+
+//        System.out.println("cutoff: " + cutoff);
         Aggregation agg = Aggregation.newAggregation(
                 // unwind dei commenti
                 Aggregation.unwind("comments"),
@@ -115,7 +148,11 @@ public class ProjectMongoDAO {
     }
 
     public List<ContribDTO> getLastMonthsContriboard(int months) {
-        Instant threshold = Instant.now().minus(months, ChronoUnit.MONTHS);
+        ZoneId zone = ZoneOffset.UTC;
+        Instant threshold = ZonedDateTime.now(zone)
+                .minusMonths(months)
+                .truncatedTo(ChronoUnit.DAYS)
+                .toInstant();
 
         Aggregation agg = Aggregation.newAggregation(
                 // 1. filtri sui commit recenti
@@ -151,7 +188,11 @@ public class ProjectMongoDAO {
 
         // 4. (Opzionale) Filtro temporale sui commit
         if (months > 0) {
-            Instant threshold = Instant.now().minus(months, ChronoUnit.MONTHS);
+            ZoneId zone = ZoneOffset.UTC;
+            Instant threshold = ZonedDateTime.now(zone)
+                    .minusMonths(months)
+                    .truncatedTo(ChronoUnit.DAYS)
+                    .toInstant();
             pipeline.add(Aggregation.match(Criteria.where("commitList.timestamp").gte(threshold)));
         }
 
@@ -189,7 +230,11 @@ public class ProjectMongoDAO {
 
         // 4. (Opzionale) Filtro temporale sui commit
         if (months > 0) {
-            Instant threshold = Instant.now().minus(months, ChronoUnit.MONTHS);
+            ZoneId zone = ZoneOffset.UTC;
+            Instant threshold = ZonedDateTime.now(zone)
+                    .minusMonths(months)
+                    .truncatedTo(ChronoUnit.DAYS)
+                    .toInstant();
             pipeline.add(Aggregation.match(Criteria.where("commitList.timestamp").gte(threshold)));
         }
 

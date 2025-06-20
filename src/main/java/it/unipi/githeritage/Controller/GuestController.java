@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.parameters.P;
 import org.springframework.web.bind.annotation.*;
 
 import it.unipi.githeritage.Service.UserService;
@@ -45,13 +46,15 @@ public class GuestController {
     // POST /api/guest/user : create new user
     @PostMapping("/user")
     public ResponseEntity<ResponseDTO<UserDTO>> addUser(@RequestBody UserDTO userDTO) {
-        // Here you would typically call a service to save the user to the database.
-        // For now, we will just return the userDTO as a response.
-
-        UserDTO addedUser = userService.addUser(userDTO);
-
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new ResponseDTO<>(true, "User created successfully", addedUser));
+        try {
+            UserDTO addedUser = userService.addUser(userDTO);
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseDTO<>(Boolean.TRUE,"",addedUser));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ResponseDTO<>(false,"Error Creating User: "
+                            + e.getMessage(),null));
+        }
     }
 
     // GET /api/guest/user/{username} : get info about user
@@ -61,12 +64,13 @@ public class GuestController {
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseDTO<>(Boolean.TRUE,"",userService.getUser(username)));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(new ResponseDTO<>(Boolean.FALSE,"Error searching user: "
                             + e.getMessage(),null));
         }
     }
 
+    // todo test with commit data
     // GET /api/guest/user/{username}/distribution : get user info with commit distributions
     @GetMapping("/user/{username}/distribution")
     public ResponseEntity<ResponseDTO<List<DailyCommitCountDTO>>> getUserWithDistribution(@PathVariable String username) {
@@ -74,8 +78,8 @@ public class GuestController {
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseDTO<>(Boolean.TRUE,"",projectService.getUserActivityDistribution(username)));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ResponseDTO<>(Boolean.FALSE,"Error searching user: "
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ResponseDTO<>(Boolean.FALSE,"Error computing user distribution: "
                             + e.getMessage(),null));
         }
     }
@@ -91,7 +95,7 @@ public class GuestController {
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseDTO<>(Boolean.TRUE,"",projectService.getProjectById(id)));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(new ResponseDTO<>(Boolean.FALSE,"Error searching project: "
                             + e.getMessage(),null));
         }
@@ -105,7 +109,7 @@ public class GuestController {
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseDTO<>(Boolean.TRUE,"",projectService.getProjectByOwnerAndName(username,projectName)));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(new ResponseDTO<>(Boolean.FALSE,"Error searching project: "
                             + e.getMessage(),null));
         }
@@ -122,7 +126,7 @@ public class GuestController {
                     .body(new ResponseDTO<>(true, "", files));
         } catch (Exception e) {
             return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .status(HttpStatus.FORBIDDEN)
                     .body(new ResponseDTO<>(false,
                             "Error retrieving commits for project /" + owner + "/" + projectName + ": " + e.getMessage(),
                             null));
@@ -141,7 +145,7 @@ public class GuestController {
                     .body(new ResponseDTO<>(true, "", files));
         } catch (Exception e) {
             return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .status(HttpStatus.FORBIDDEN)
                     .body(new ResponseDTO<>(false,
                             "Error retrieving commits for project /" + owner + "/" + projectName + ": " + e.getMessage(),
                             null));
@@ -165,7 +169,7 @@ public class GuestController {
                     .body(new ResponseDTO<>(true, "", commits));
         } catch (Exception e) {
             return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .status(HttpStatus.FORBIDDEN)
                     .body(new ResponseDTO<>(false,
                             "Error retrieving commits for project " + projectId + ": " + e.getMessage(),
                             null));
@@ -184,7 +188,7 @@ public class GuestController {
                     .body(new ResponseDTO<>(true, "", commits));
         } catch (Exception e) {
             return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .status(HttpStatus.FORBIDDEN)
                     .body(new ResponseDTO<>(false,
                             "Error retrieving commits for project /" + owner + '/' + projectName + ": " + e.getMessage(),
                             null));
@@ -204,7 +208,7 @@ public class GuestController {
                     .body(new ResponseDTO<>(true, "", commits));
         } catch (Exception e) {
             return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .status(HttpStatus.FORBIDDEN)
                     .body(new ResponseDTO<>(false,
                             "Error retrieving page " + page + " of commits for project " + projectId + ": "
                                     + e.getMessage(),
@@ -225,7 +229,7 @@ public class GuestController {
                     .body(new ResponseDTO<>(true, "", commits));
         } catch (Exception e) {
             return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .status(HttpStatus.FORBIDDEN)
                     .body(new ResponseDTO<>(false,
                             "Error retrieving page " + page + " of commits for project /" + owner +
                                     '/' + projectName + ": " + e.getMessage(),
@@ -245,7 +249,7 @@ public class GuestController {
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseDTO<>(Boolean.TRUE,"",fileService.getFile(id)));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(new ResponseDTO<>(Boolean.FALSE,"Error searching user: "
                             + e.getMessage(),null));
         }
@@ -275,13 +279,13 @@ public class GuestController {
 
     // todo test
     // GET /api/guest/followers?username=username : get all user followers
-    @GetMapping("/followers")
-    public ResponseEntity<ResponseDTO<List<String>>> getFollowers(@RequestParam String username) {
+    @GetMapping("/followers/{username}")
+    public ResponseEntity<ResponseDTO<List<String>>> getFollowers(@PathVariable String username) {
         try {
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseDTO<>(Boolean.TRUE,"",userService.getFollowersUsernames(username)));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(new ResponseDTO<>(Boolean.FALSE,"Error retrieving followers: "
                             + e.getMessage(),null));
         }
@@ -296,7 +300,7 @@ public class GuestController {
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseDTO<>(Boolean.TRUE,"",userService.getFollowsUsernames(username)));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(new ResponseDTO<>(Boolean.FALSE,"Error retrieving follows: "
                             + e.getMessage(),null));
         }
@@ -311,7 +315,7 @@ public class GuestController {
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseDTO<>(Boolean.TRUE,"",projectService.getAllTimeLeaderboard()));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(new ResponseDTO<>(Boolean.FALSE,"Error retrieving leaderboard: "
                             + e.getMessage(),null));
         }
@@ -326,7 +330,7 @@ public class GuestController {
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseDTO<>(Boolean.TRUE,"",projectService.getLeaderboardLastMonths(months)));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(new ResponseDTO<>(Boolean.FALSE,"Error retrieving partial leaderboard: "
                             + e.getMessage(),null));
         }
@@ -340,7 +344,7 @@ public class GuestController {
             return ResponseEntity.ok(new ResponseDTO<>(true, "", board));
         } catch (Exception e) {
             return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .status(HttpStatus.FORBIDDEN)
                     .body(new ResponseDTO<>(false,
                             "Error computing all-time contribution leaderboard: " + e.getMessage(),
                             null));
@@ -356,7 +360,7 @@ public class GuestController {
             return ResponseEntity.ok(new ResponseDTO<>(true, "", board));
         } catch (Exception e) {
             return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .status(HttpStatus.FORBIDDEN)
                     .body(new ResponseDTO<>(false,
                             "Error computing last " + months + " months contribution leaderboard: "
                                     + e.getMessage(),
@@ -379,7 +383,7 @@ public class GuestController {
             return ResponseEntity.ok(new ResponseDTO<>(true, "", board));
         } catch (Exception e) {
             return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .status(HttpStatus.FORBIDDEN)
                     .body(new ResponseDTO<>(false,
                             "Error computing all-time leaderboard for project " + projectId
                                     + ": " + e.getMessage(),
@@ -403,7 +407,7 @@ public class GuestController {
             return ResponseEntity.ok(new ResponseDTO<>(true, "", board));
         } catch (Exception e) {
             return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .status(HttpStatus.FORBIDDEN)
                     .body(new ResponseDTO<>(false,
                             "Error computing all-time leaderboard for project /" + owner +
                             '/' + projectName + ": " + e.getMessage(),
@@ -411,7 +415,7 @@ public class GuestController {
         }
     }
 
-    // todo vedere se cambiare, aggiungere altro metodo con owner e projectName e test
+    // todo rivedere query con neo4j
     // GET /api/guest/dependencies?projectId=projectId : list all 1st level dependencies for project
     @GetMapping("/dependencies/{projectId}")
     public ResponseEntity<ResponseDTO<List<String>>> getFirstLevelDependencies(
@@ -422,14 +426,31 @@ public class GuestController {
             return ResponseEntity.ok(new ResponseDTO<>(true, "", deps));
         } catch (Exception e) {
             return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .status(HttpStatus.FORBIDDEN)
+                    .body(new ResponseDTO<>(false,
+                            "Error computing all-time leaderboard: " + e.getMessage(),
+                            null));
+        }
+    }
+    // GET /api/guest/dependencies?projectId=projectId : list all 1st level dependencies for project
+    @GetMapping("/dependencies/{owner}/{projectName}")
+    public ResponseEntity<ResponseDTO<List<String>>> getFirstLevelDependencies(
+            @PathVariable String owner,
+            @PathVariable String projectName
+    ) {
+        try {
+            List<String> deps = projectService.getFirstLevelDeps(owner,projectName);
+            return ResponseEntity.ok(new ResponseDTO<>(true, "", deps));
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.FORBIDDEN)
                     .body(new ResponseDTO<>(false,
                             "Error computing all-time leaderboard: " + e.getMessage(),
                             null));
         }
     }
 
-    // todo vedere se cambiare, aggiungere altro metodo con owner e projectName e test
+    // todo rivedere query con neo4j
     // GET /api/guest/dependencies/recursive?projectId=projectId : list all project dependencies (first 200)
     @GetMapping("/dependencies/recursive/{projectId}")
     public ResponseEntity<ResponseDTO<List<String>>> getRecursiveDependencies(
@@ -440,15 +461,32 @@ public class GuestController {
             return ResponseEntity.ok(new ResponseDTO<>(true, "", deps));
         } catch (Exception e) {
             return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .status(HttpStatus.FORBIDDEN)
                     .body(new ResponseDTO<>(false,
                             "Error computing all-time leaderboard: " + e.getMessage(),
                             null));
         }
     }
 
-    // todo vedere se cambiare, aggiungere altro metodo con owner e projectName e test
-    // GET /api/guest/dependencies/recursive/{page}?projectId=projectId : list all project dependencies in pages of 100
+    @GetMapping("/dependencies/recursive/{owner}/{projectName}")
+    public ResponseEntity<ResponseDTO<List<String>>> getRecursiveDependencies(
+            @PathVariable String owner,
+            @PathVariable String projectName
+    ) {
+        try {
+            List<String> deps = projectService.getAllRecursiveDeps(owner,projectName);
+            return ResponseEntity.ok(new ResponseDTO<>(true, "", deps));
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.FORBIDDEN)
+                    .body(new ResponseDTO<>(false,
+                            "Error computing all-time leaderboard: " + e.getMessage(),
+                            null));
+        }
+    }
+
+    // todo rivedere query con neo4j
+    // GET /api/guest/dependencies/recursive/{projectId}/{page} : list all project dependencies in pages of 100
     @GetMapping("/dependencies/recursive/{projectId}/{page}")
     public ResponseEntity<ResponseDTO<List<String>>> getRecursiveDependenciesPaginated(
             @PathVariable String projectId,
@@ -459,14 +497,33 @@ public class GuestController {
             return ResponseEntity.ok(new ResponseDTO<>(true, "", deps));
         } catch (Exception e) {
             return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .status(HttpStatus.FORBIDDEN)
                     .body(new ResponseDTO<>(false,
                             "Error computing all-time leaderboard: " + e.getMessage(),
                             null));
         }
     }
 
-    // todo vedere se cambiare, aggiungere altro metodo con owner e projectName e test
+    // GET /api/guest/dependencies/recursive/{projectId}/{page} : list all project dependencies in pages of 100
+    @GetMapping("/dependencies/recursive/{owner}/{projectName}/{page}")
+    public ResponseEntity<ResponseDTO<List<String>>> getRecursiveDependenciesPaginated(
+            @PathVariable String owner,
+            @PathVariable String projectName,
+            @PathVariable int page
+    ) {
+        try {
+            List<String> deps = projectService.getAllRecursiveDepsPaginated(owner,projectName,page);
+            return ResponseEntity.ok(new ResponseDTO<>(true, "", deps));
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.FORBIDDEN)
+                    .body(new ResponseDTO<>(false,
+                            "Error computing all-time leaderboard: " + e.getMessage(),
+                            null));
+        }
+    }
+
+    // todo rivedere query con neo4j
     // GET /api/guest/methods/{projectId} : list all project methods
     @GetMapping("/methods/{projectId}")
     public ResponseEntity<ResponseDTO<List<String>>> getProjectMethods(
@@ -477,14 +534,32 @@ public class GuestController {
             return ResponseEntity.ok(new ResponseDTO<>(true, "", methods));
         } catch (Exception e) {
             return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .status(HttpStatus.FORBIDDEN)
                     .body(new ResponseDTO<>(false,
                             "Error computing all-time leaderboard: " + e.getMessage(),
                             null));
         }
     }
 
-    // todo vedere se cambiare, aggiungere altro metodo con owner e projectName e test
+    // GET /api/guest/methods/{projectId} : list all project methods
+    @GetMapping("/methods/{owner}/{projectName}")
+    public ResponseEntity<ResponseDTO<List<String>>> getProjectMethods(
+            @PathVariable String owner,
+            @PathVariable String projectName
+    ) {
+        try {
+            List<String> methods = projectService.getAllMethods(owner,projectName);
+            return ResponseEntity.ok(new ResponseDTO<>(true, "", methods));
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.FORBIDDEN)
+                    .body(new ResponseDTO<>(false,
+                            "Error computing all-time leaderboard: " + e.getMessage(),
+                            null));
+        }
+    }
+
+    // todo rivedere query con neo4j
     // GET /api/guest/methods/{projectId}/{page} : list all project methods in pages of 100
     @GetMapping("/methods/{projectId}/{page}")
     public ResponseEntity<ResponseDTO<List<String>>> getProjectMethodsPaginated(
@@ -496,7 +571,26 @@ public class GuestController {
             return ResponseEntity.ok(new ResponseDTO<>(true, "Methods found", methods));
         } catch (Exception e) {
             return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .status(HttpStatus.FORBIDDEN)
+                    .body(new ResponseDTO<>(false,
+                            "Error computing all-time leaderboard: " + e.getMessage(),
+                            null));
+        }
+    }
+
+    // GET /api/guest/methods/{projectId}/{page} : list all project methods in pages of 100
+    @GetMapping("/methods/{owner}/{projectName}/{page}")
+    public ResponseEntity<ResponseDTO<List<String>>> getProjectMethodsPaginated(
+            @PathVariable String owner,
+            @PathVariable String projectName,
+            @PathVariable int page
+    ) {
+        try {
+            List<String> methods = projectService.getAllMethodsPaginated(owner,projectName,page);
+            return ResponseEntity.ok(new ResponseDTO<>(true, "Methods found", methods));
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.FORBIDDEN)
                     .body(new ResponseDTO<>(false,
                             "Error computing all-time leaderboard: " + e.getMessage(),
                             null));

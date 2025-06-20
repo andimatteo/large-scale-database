@@ -25,7 +25,7 @@ public class AdminController {
 
     // DELETE /api/admin/user/{username} : delete arbitrary user
     @DeleteMapping("/user/{username}")
-    public ResponseEntity<ResponseDTO<UserDTO>> deleteUser(
+    public ResponseEntity<ResponseDTO<Long>> deleteUser(
             @PathVariable String username
     ) {
         try {
@@ -39,43 +39,16 @@ public class AdminController {
                         .body(new ResponseDTO<>(false, "You are not Admin", null));
             }
 
-            UserDTO dto = null;
+            Long code = null;
             if (authenticatedUsername != null) {
-                dto = userService.deleteUser(username);
+                code = userService.deleteUser(username);
             }
-            return ResponseEntity.ok(new ResponseDTO<>(true, "User deleted successfully", dto));
+            return ResponseEntity.ok(new ResponseDTO<>(true, "User deleted successfully", code));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ResponseDTO<>(false, "Error deleting user: " + e.getMessage(), null));
         }
     }
-
-//    // PUT /api/admin/user/{username} : update arbitrary user
-//    @PutMapping("/user")
-//    public ResponseEntity<ResponseDTO<UserDTO>> updateUser(
-//            @RequestBody UserDTO userDTO
-//    ) {
-//        try {
-//            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-//            CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
-//            String authenticatedUsername = authenticatedUser.getUsername();
-//
-//            Boolean isAdmin = authenticatedUser.getIsAdmin();
-//            if (!isAdmin) {
-//                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-//                        .body(new ResponseDTO<>(false, "You are not Admin", null));
-//            }
-//
-//            UserDTO dto = null;
-//            if (authenticatedUsername != null) {
-//                dto = userService.editUser(userDTO);
-//            }
-//            return ResponseEntity.ok(new ResponseDTO<>(true, "User deleted successfully", dto));
-//        } catch (Exception e) {
-//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-//                    .body(new ResponseDTO<>(false, "Error deleting user: " + e.getMessage(), null));
-//        }
-//    }
 
     // GET /api/admin/user/all : get list of all users (max 200)
     @GetMapping("/user/all")

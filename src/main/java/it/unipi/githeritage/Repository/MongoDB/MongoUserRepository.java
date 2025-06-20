@@ -11,8 +11,8 @@ import java.util.List;
 import java.util.Optional;
 
 public interface MongoUserRepository extends MongoRepository<User, String> {
-    UserDTO findByUsername(String username);
-    UserDTO deleteByUsername(String username);
+    Optional<UserDTO> findByUsername(String username);
+    Optional<Long> deleteByUsername(String username);
     Optional<List<UserMetadataDTO>> findTop100ByOrderByUsernameAsc();
     Page<UserMetadataDTO> findAllOrderByUsername(Pageable pageable);
 }
