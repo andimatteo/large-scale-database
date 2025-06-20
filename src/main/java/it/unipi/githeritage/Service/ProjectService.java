@@ -77,8 +77,10 @@ public class ProjectService {
                 throw new RuntimeException("Project with same name already exists");
             }
 
-            mongoProjectRepository.save(Project.fromDTO(projectDTO));
-            
+            // give same id to neo4j node
+            Project project = mongoProjectRepository.save(Project.fromDTO(projectDTO));
+            projectDTO.setId(project.getId());
+
             // Save the project in Neo4j
             neo4jDAO.addProject(projectDTO);
             neo = true;
@@ -210,61 +212,80 @@ public class ProjectService {
         return neo4jDAO.projectMethodsPaginated(owner, projectName, page);
     }
 
-    public ProjectDTO deleteProject(String projectId, String authenticatedUser) {
+    public ProjectDTO deleteProject(String projectId, String authenticatedUser, boolean isAdmin) {
         // 1) prendo document da Mongo
         Project project = mongoProjectRepository.findById(projectId)
                 .orElseThrow(() -> new RuntimeException("Project not found"));
-        // delego all’altro overload, passandogli owner+name
+
         return deleteProject(
                 project.getOwner(),
                 project.getName(),
                 projectId,
-                authenticatedUser
+                authenticatedUser,
+                isAdmin
         );
     }
 
     public ProjectDTO deleteProject(String owner,
                                     String projectName,
-                                    String authenticatedUser) {
+                                    String authenticatedUser,
+                                    Boolean isAdmin) {
         // cerco in Mongo con owner+name
         Project project = mongoProjectRepository
                 .findByOwnerAndName(owner, projectName)
                 .orElseThrow(() -> new RuntimeException("Project not found"));
-        // delego all’altro overload
+
         return deleteProject(
                 owner,
                 projectName,
                 project.getId(),
-                authenticatedUser
+                authenticatedUser,
+                isAdmin
         );
     }
 
     private ProjectDTO deleteProject(String owner,
                                      String projectName,
                                      String projectId,
-                                     String authenticatedUser
+                                     String authenticatedUser,
+                                     Boolean isAdmin
                                     ) {
-        // 1) permessi
+        // 1) utente non negli amministratori e utente non admin
         if (!mongoProjectRepository.findById(projectId)
                 .orElseThrow(() -> new RuntimeException("Project not found"))
-                .getAdministrators().contains(authenticatedUser)) {
+                .getAdministrators().contains(authenticatedUser)
+            && !isAdmin) {
             throw new RuntimeException("Forbidden");
         }
 
-        // 2) Mongo: cancello tutti i file e il progetto
-        mongoFileRepository.deleteByOwnerAndProjectName(owner, projectName);
-        mongoProjectRepository.deleteById(projectId);
+        boolean neoDone   = false;
+        try {
 
-        // 3) Neo4j: prelevo tutti i metodi (usando id)
-        List<String> fqnList = neo4jDAO.projectMethodsById(projectId);
+            // delete in mongoDB
+            mongoFileRepository.deleteByOwnerAndProjectName(owner, projectName);
+            mongoProjectRepository.deleteById(projectId);
 
-        // 4) rimuovo il nodo Project (e tutte le sue relazioni)
-        neo4jDAO.deleteProjectNodeById(projectId);
+            // delete project node and all its methods if orphans
+            List<String> methodList = neo4jDAO.projectMethodsById(projectId);
+            neo4jDAO.deleteProjectNodeById(projectId);
 
-        // 5) pulisco i Method rimasti
-        for (String fqn : fqnList) {
-            neo4jDAO.clearMethodCalls(owner, fqn);
-            neo4jDAO.deleteMethodIfOrphan(owner, fqn);
+            // safe delete: eliminazione di un nodo metodo soltanto se
+            for (String fqn : methodList) {
+                neo4jDAO.clearMethodCalls(owner, fqn);
+                neo4jDAO.deleteMethodIfOrphan(owner, fqn);
+            }
+            neoDone = true;
+
+        } catch (Exception e) {
+
+            if (neoDone) {
+                throw new RuntimeException("Neo4j project deletion completed but mongoDB failed," +
+                        " check for consistency");
+            }
+
+            // bring exception to higher level
+            throw new RuntimeException(e.getMessage());
+
         }
 
         // 6) restituisco conferma
@@ -775,5 +796,106 @@ public class ProjectService {
                 .map(File::getPath)
                 .collect(Collectors.toList());
     }
+
+    public void updateCollaborators(String owner, String projectName, String authenticatedUsername, String username, Project project, boolean isAdmin) {
+        // retrieve projectId
+        project = mongoProjectRepository.findByOwnerAndName(owner,projectName)
+                .orElseThrow(() -> new RuntimeException("Project not found"));
+
+        // delegate to next function
+        updateCollaborators(project.getId(), authenticatedUsername, username, project, isAdmin);
+    }
+
+    public void updateCollaborators(String projectId, String authenticatedUsername, String username, Project project, boolean isAdmin) {
+        ClientSession session = mongoClient.startSession();
+        Boolean neo = false;
+        try {
+            session.startTransaction();
+
+            // get project
+            if (project == null) {
+                project = mongoProjectRepository.findById(projectId)
+                        .orElseThrow(() -> new RuntimeException("Project not found"));
+            }
+
+            // check if user is administrator or admin
+            if (!project.getAdministrators().contains(authenticatedUsername) && !isAdmin) {
+                throw new RuntimeException("You canno edit this project");
+            }
+
+            // add user in administrators
+            project.addAdministrator(username);
+
+            // update project
+            mongoProjectRepository.save(project);
+
+            // add user to project
+            neo4jDAO.addCollaborator(username, projectId);
+            neo = true;
+
+            session.commitTransaction();
+
+        } catch (Exception e) {
+            session.abortTransaction();
+            if (neo) {
+                throw new RuntimeException("Project creation succeded in Neo4j but failed in MongoDB, check for " +
+                        "consistency in database");
+            }
+            throw new RuntimeException(e.getMessage());
+        } finally {
+            session.close();
+        }
+    }
+
+    public void deleteCollaborators(String owner, String projectName, String authenticatedUsername, String username, Project project, boolean isAdmin) {
+        // retrieve projectId
+        project = mongoProjectRepository.findByOwnerAndName(owner,projectName)
+                .orElseThrow(() -> new RuntimeException("Project not found"));
+
+        // delegate to next function
+        deleteCollaborators(project.getId(), authenticatedUsername, username, project, isAdmin);
+    }
+
+    public void deleteCollaborators(String projectId, String authenticatedUsername, String username, Project project, boolean isAdmin) {
+        ClientSession session = mongoClient.startSession();
+        Boolean neo = false;
+        try {
+            session.startTransaction();
+
+            // get project
+            if (project == null) {
+                project = mongoProjectRepository.findById(projectId)
+                        .orElseThrow(() -> new RuntimeException("Project not found"));
+            }
+
+            // check if user is administrator or admin
+            if (!project.getAdministrators().contains(authenticatedUsername) && !isAdmin) {
+                throw new RuntimeException("You cannot edit this project");
+            }
+
+            // remove in administrators
+            project.removeAdministrator(username);
+
+            // update project
+            mongoProjectRepository.save(project);
+
+            // add user to project
+            neo4jDAO.removeCollaborator(username, projectId);
+            neo = true;
+
+            session.commitTransaction();
+
+        } catch (Exception e) {
+            session.abortTransaction();
+            if (neo) {
+                throw new RuntimeException("Administrator removal succeded in Neo4j but failed in MongoDB, check for " +
+                        "consistency in database");
+            }
+            throw new RuntimeException(e.getMessage());
+        } finally {
+            session.close();
+        }
+    }
+
 
 }

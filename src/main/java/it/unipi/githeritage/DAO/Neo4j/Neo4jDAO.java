@@ -179,13 +179,13 @@ public class Neo4jDAO {
     }
 
     public void mergeUser(String username) {
-        client.query("CREATE (u:User {username: $username})")
+        client.query("MERGE (u:User {username: $username})")
                 .bind(username).to("username")
                 .run();
     }
 
     public void mergeProject(String projectId, String name) {
-        client.query("CREATE (p:Project {id: $id, name: $name})")
+        client.query("MERGE (p:Project {id: $id, name: $name})")
                 .bind(projectId).to("id")
                 .bind(name).to("name")
                 .run();
@@ -193,7 +193,8 @@ public class Neo4jDAO {
 
     public void relateUserToProject(String username, String projectId) {
         client.query("""
-            MATCH (u:User {username: $username}), (p:Project {id: $projectId})
+            MATCH (u:User {username: $username})
+            MATCH (p:Project {id: $projectId})
             MERGE (u)-[:COLLABORATES_ON]->(p)
             """)
                 .bind(username).to("username")
@@ -269,6 +270,10 @@ public class Neo4jDAO {
                 .run();
     }
 
+    public void deleteMethodById(List<String> methodIds) {
+
+    }
+
     public void relateProjectDependency(String projectId, String depProjectId) {
         client.query("""
             MATCH (p1:Project {id: $projectId}), (p2:Project {id: $depProjectId})
@@ -337,16 +342,32 @@ public class Neo4jDAO {
     }
 
     public void followUser(String followerUsername, String followedUsername) {
-        // garantisco l’esistenza dei due nodi
-        mergeUser(followerUsername);
-        mergeUser(followedUsername);
-        client.query("""
-            MATCH (f:User {username: $follower}), (t:User {username: $followed})
-            MERGE (f)-[:FOLLOWS]->(t)
+        try {
+            boolean followedExists = client.query("""
+            MATCH (t:User {username: $followed})
+            RETURN true
             """)
-                .bind(followerUsername).to("follower")
-                .bind(followedUsername).to("followed")
-                .run();
+                    .bind(followedUsername).to("followed")
+                    .fetchAs(Boolean.class)
+                    .one()               // Optional<Boolean>
+                    .orElse(false);      // false se Optional.empty()
+
+            if (!followedExists) {
+                throw new RuntimeException("User '" + followedUsername + "' does not exist");
+            }
+
+            client.query("""
+                MATCH (f:User {username: $follower})
+                MATCH (t:User {username: $followed})
+                MERGE (f)-[:FOLLOWS]->(t)
+                """)
+                    .bind(followerUsername).to("follower")
+                    .bind(followedUsername).to("followed")
+                    .run();
+
+        } catch (Exception e) {
+            throw new RuntimeException(e.getMessage());
+        }
     }
 
     public void unfollowUser(String followerUsername, String followedUsername) {
@@ -473,4 +494,24 @@ public class Neo4jDAO {
                 });
     }
 
+    public void addCollaborator(String username, String projectId) {
+        client.query("""
+        MATCH (u:User {username: $username})
+        MATCH (p:Project {id: $projectId})
+        MERGE (u)-[:COLLABORATES_ON]->(p)
+        """)
+                .bind(username).to("username")
+                .bind(projectId).to("projectId")
+                .run();
+    }
+
+    public void removeCollaborator(String username, String projectId) {
+        client.query("""
+        MATCH (u:User {username: $username})-[r:COLLABORATES_ON]->(p:Project {id: $projectId})
+        DELETE r
+        """)
+                .bind(username).to("username")
+                .bind(projectId).to("projectId")
+                .run();
+    }
 }

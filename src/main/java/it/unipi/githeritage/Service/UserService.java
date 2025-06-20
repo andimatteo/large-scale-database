@@ -42,7 +42,7 @@ public class UserService {
         // todo vedere cosa fare con questa variabile neo4j
         Boolean neo = false;
         try {
-            System.out.println("Starting transaction to add user: " + userDTO.getUsername());
+//            System.out.println("Starting transaction to add user: " + userDTO.getUsername());
             session.startTransaction();
             // Save the user in MongoDB
             userDTO.setIsAdmin(false); // Default to non-admin
@@ -80,9 +80,9 @@ public class UserService {
     public UserDTO getUserByUsername(String username) {
         try {
 
-            System.out.println("Retrieving user by username: " + username);
+//            System.out.println("Retrieving user by username: " + username);
             UserDTO found = userMongoDAO.getUserByUsername(username);
-            System.out.println("User found: " + found);
+//            System.out.println("User found: " + found);
             return found;
         } catch (Exception e) {
             throw new RuntimeException("User not found: " + username, e);
@@ -107,22 +107,12 @@ public class UserService {
     }
 
     public boolean followUser(String followerUsername, String followedUsername) {
-        ClientSession session = mongoClient.startSession();
         try {
-            System.out.println("Starting transaction to follow user: " + followerUsername + " -> " + followedUsername);
-            session.startTransaction();
-            
             // Create the FOLLOWS relationship in Neo4j
             neo4jDAO.followUser(followerUsername, followedUsername);
-            
-            session.commitTransaction();
             return true;
         } catch (Exception e) {
-            session.abortTransaction();
-            System.err.println("Error following user: " + e.getMessage());
-            return false;
-        } finally {
-            session.close();
+            throw new RuntimeException(e.getMessage());
         }
     }
 

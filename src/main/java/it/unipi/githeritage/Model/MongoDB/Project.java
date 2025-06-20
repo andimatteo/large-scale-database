@@ -68,5 +68,20 @@ public class Project {
         project.setComments(projectDTO.getComments());
         return project;
     }
+
+    public boolean addAdministrator(String username){
+        // if not already present
+        if (administrators.contains(username))
+            return false;
+        return administrators.add(username);
+    }
+
+    public boolean removeAdministrator(String username){
+        // if present
+        if (!administrators.contains(username))
+            return false;
+        System.out.println("Eliminating administrator " + username);
+        return administrators.remove(username);
+    }
 }
 

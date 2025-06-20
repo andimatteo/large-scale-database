@@ -228,6 +228,122 @@ public class UserController {
         }
     }
 
+
+
+    // PUT /api/user/collaborators/{projectId}/{username} : add username to project
+    @PutMapping("/collaborators/{projectId}/{username}")
+    public ResponseEntity<ResponseDTO<?>> updateCollaborator(
+            @PathVariable String projectId,
+            @PathVariable String username
+    ) {
+        try {
+            // Get the authenticated user from security context
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
+
+            String authenticatedUsername = authenticatedUser.getUsername();
+            Boolean isAdmin = authenticatedUser.getIsAdmin();
+
+            if (authenticatedUsername == null) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ResponseDTO<>(false, "Not logged in", null));
+            }
+
+            // Call the service to update the project
+            projectService.updateCollaborators(projectId, authenticatedUsername, username, null, isAdmin);
+            return ResponseEntity.ok(new ResponseDTO<>(true, "Project updated successfully", username));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false, "Error updating project: " + e.getMessage(), null));
+        }
+    }
+
+    // DELETE /api/user/collaborators/{projectId}/{username} : remove username from project
+    @DeleteMapping("/collaborators/{projectId}/{username}")
+    public ResponseEntity<ResponseDTO<?>> deleteCollaborator(
+            @PathVariable String projectId,
+            @PathVariable String username
+    ) {
+        try {
+            // Get the authenticated user from security context
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
+
+            String authenticatedUsername = authenticatedUser.getUsername();
+            Boolean isAdmin = authenticatedUser.getIsAdmin();
+
+            if (authenticatedUsername == null) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ResponseDTO<>(false, "Not logged in", null));
+            }
+
+            // Call the service to update the project
+            projectService.deleteCollaborators(projectId, authenticatedUsername, username, null, isAdmin);
+            return ResponseEntity.ok(new ResponseDTO<>(true, "Project updated successfully", username));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false, "Error updating project: " + e.getMessage(), null));
+        }
+    }
+
+    // PUT /api/user/collaborators/{owner}/{projectName}/{username} : add username to project
+    @PutMapping("/collaborators/{owner}/{projectName}/{username}")
+    public ResponseEntity<ResponseDTO<?>> updateCollaborator(
+            @PathVariable String owner,
+            @PathVariable String projectName,
+            @PathVariable String username
+    ) {
+        try {
+            // Get the authenticated user from security context
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
+
+            String authenticatedUsername = authenticatedUser.getUsername();
+            Boolean isAdmin = authenticatedUser.getIsAdmin();
+
+            if (authenticatedUsername == null) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ResponseDTO<>(false, "Not logged in", null));
+            }
+
+            // Call the service to update the project
+            projectService.updateCollaborators(owner, projectName, authenticatedUsername, username, null, isAdmin);
+            return ResponseEntity.ok(new ResponseDTO<>(true, "Successfully added collaborator", username));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false, "Error updating project: " + e.getMessage(), null));
+        }
+    }
+
+    // DELETE /api/user/collaborators/{owner/{projectName}/{username} : remove username from project
+    @DeleteMapping("/collaborators/{owner}/{projectName}/{username}")
+    public ResponseEntity<ResponseDTO<?>> deleteCollaborator(
+            @PathVariable String owner,
+            @PathVariable String projectName,
+            @PathVariable String username
+    ) {
+        try {
+            // Get the authenticated user from security context
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
+
+            String authenticatedUsername = authenticatedUser.getUsername();
+            Boolean isAdmin = authenticatedUser.getIsAdmin();
+
+            if (authenticatedUsername == null) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ResponseDTO<>(false, "Not logged in", null));
+            }
+
+            // Call the service to update the project
+            projectService.deleteCollaborators(owner, projectName, authenticatedUsername, username, null, isAdmin);
+            return ResponseEntity.ok(new ResponseDTO<>(true, "Successfully removed collaborator", username));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDTO<>(false, "Error updating project: " + e.getMessage(), null));
+        }
+    }
+
     // todo ulteriori testing
     // todo: quando modifico file e creo methods vanno aggiornati tutti i methods verso cui creo un arco e cosi' via...
     // DELETE /api/user/project?projectId=projectId : delete project
@@ -240,6 +356,7 @@ public class UserController {
             CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
             //System.out.println("Authenticated user: " + authenticatedUser);
             String username = authenticatedUser.getUsername();
+            Boolean isAdmin = authenticatedUser.getIsAdmin();
 
             if (username == null) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
@@ -247,7 +364,7 @@ public class UserController {
             }
 
             // Call the service to update the project
-            ProjectDTO deletedProject = projectService.deleteProject(projectId, username);
+            ProjectDTO deletedProject = projectService.deleteProject(projectId, username, isAdmin);
             return ResponseEntity.ok(new ResponseDTO<>(true, "Project updated successfully", deletedProject));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -255,7 +372,7 @@ public class UserController {
         }
     }
 
-    // todo: quando modifico file e creo methods vanno aggiornati tutti i methods verso cui creo un arco e cosi' via...
+    // todo testing
     // DELETE /api/user/project : delete project
     // query parameters: projectId
     @DeleteMapping("/project/{owner}/{projectName}")
@@ -267,6 +384,7 @@ public class UserController {
             CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
             //System.out.println("Authenticated user: " + authenticatedUser);
             String authenticatedUsername = authenticatedUser.getUsername();
+            Boolean isAdmin = authenticatedUser.getIsAdmin();
 
             if (authenticatedUsername == null) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
@@ -274,7 +392,7 @@ public class UserController {
             }
 
             // Call the service to update the project
-            ProjectDTO deletedProject = projectService.deleteProject(owner, projectName, authenticatedUsername);
+            ProjectDTO deletedProject = projectService.deleteProject(owner, projectName, authenticatedUsername, isAdmin);
             return ResponseEntity.ok(new ResponseDTO<>(true, "Project deleted successfully",
                     deletedProject));
         } catch (Exception e) {
@@ -283,16 +401,20 @@ public class UserController {
         }
     }
 
-    // POST /api/user/follow : follow a user
-    // query parameters: username to follow
-    @PostMapping("/follow")
-    public ResponseEntity<ResponseDTO<?>> followUser(@RequestParam String username) {
+    // POST /api/user/follow/{username} : follow a user
+    @PostMapping("/follow/{username}")
+    public ResponseEntity<ResponseDTO<?>> followUser(@PathVariable String username) {
         try {
             // Get the authenticated user from security context
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
             //System.out.println("Authenticated user: " + authenticatedUser);
             String authenticatedUsername = authenticatedUser.getUsername();
+
+            // check if user is following himself
+            if (username.equals(authenticatedUsername)) {
+                throw new RuntimeException("You cannot follow yourself");
+            }
 
             if (authenticatedUsername == null) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
@@ -308,8 +430,8 @@ public class UserController {
         }
     }
 
-    @DeleteMapping("/follow")
-    public ResponseEntity<ResponseDTO<?>> unfollowUser(@RequestParam String username) {
+    @DeleteMapping("/follow/{username}")
+    public ResponseEntity<ResponseDTO<?>> unfollowUser(@PathVariable String username) {
         try {
             // Get the authenticated user from security context
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
