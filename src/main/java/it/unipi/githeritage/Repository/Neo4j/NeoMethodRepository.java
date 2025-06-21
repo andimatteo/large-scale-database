@@ -19,7 +19,7 @@ public interface NeoMethodRepository extends Neo4jRepository<Method, String> {
 
     /** Prende i top-20 Method di un progetto (owner+projectName) ordinati per hotness desc */
     @Query("""
-       MATCH (p:Project {owner: $owner, projectName: $projectName})-[:HAS_METHOD]->(m:Method)
+       MATCH (p:Project {owner: $owner, name: $projectName})-[:HAS_METHOD]->(m:Method)
        RETURN m
        ORDER BY m.hotness DESC
        LIMIT 20

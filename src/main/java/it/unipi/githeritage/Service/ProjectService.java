@@ -215,6 +215,14 @@ public class ProjectService {
         return neo4jDAO.projectMethodsPaginated(owner, projectName, page);
     }
 
+    public List<String> getHottestMethods(String projectId) {
+        return neo4jDAO.getHottestMethods(projectId);
+    }
+
+    public List<String> getHottestMethods(String owner, String projectName) {
+        return neo4jDAO.getHottestMethods(owner, projectName);
+    }
+
     public ProjectDTO deleteProject(String projectId, String authenticatedUser, boolean isAdmin) {
         // 1) prendo document da Mongo
         Project project = mongoProjectRepository.findById(projectId)

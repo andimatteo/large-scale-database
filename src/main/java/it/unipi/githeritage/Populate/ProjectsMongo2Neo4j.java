@@ -272,6 +272,10 @@ public class ProjectsMongo2Neo4j implements CommandLineRunner {
                 
                 neo4jDAO.relateMethodsCall(owner, callerFqn, calleeFqn);
             }
+
+            // now esplora l'intero grafo dei metodi, aggiungendo l'attributo hotness
+            System.out.println("Analyzing method hotness...");
+            neo4jDAO.calculateAndUpdateMethodHotness();
             
             System.out.println("Completed processing all files");
             

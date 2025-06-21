@@ -10,9 +10,13 @@ import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.data.neo4j.core.Neo4jTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Repository
@@ -42,6 +46,8 @@ public class Neo4jDAO {
      */
     public void createProjectIdIndex() {
         client.query("CREATE CONSTRAINT IF NOT EXISTS FOR (p:Project) REQUIRE p.id IS UNIQUE")
+              .run();
+        client.query("CREATE CONSTRAINT IF NOT EXISTS FOR (p:Project) REQUIRE (p.owner, p.projectName) IS UNIQUE")
               .run();
         client.query("CREATE CONSTRAINT IF NOT EXISTS FOR (m:Method) REQUIRE m.fullyQualifiedName IS UNIQUE")
               .run();
@@ -236,7 +242,7 @@ public class Neo4jDAO {
     }
 
     public void mergeProject(String projectId, String projectName, String owner) {
-        client.query("MERGE (p:Project {id: $id, name: $name})")
+        client.query("MERGE (p:Project {id: $id, name: $name, owner: $owner})")
                 .bind(projectId).to("id")
                 .bind(projectName).to("name")
                 .bind(owner).to("owner")
@@ -674,5 +680,194 @@ public class Neo4jDAO {
                 .fetch().one()
                 .map(row -> ((Number)row.get("followingCount")).intValue())
                 .orElse(0);
+    }
+
+    /**
+     * Get the top 20 hottest methods for a project by project ID
+     */
+    public List<String> getHottestMethods(String projectId) {
+        String cypher = """
+            MATCH (p:Project {id: $projectId})-[:HAS_METHOD]->(m:Method)
+            RETURN m.fullyQualifiedName AS fqn
+            ORDER BY COALESCE(m.hotness, 0) DESC
+            LIMIT 20
+            """;
+        return client.query(cypher)
+                .bind(projectId).to("projectId")
+                .fetch().all()
+                .stream()
+                .map(row -> (String) row.get("fqn"))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get the top 20 hottest methods for a project by owner and project name
+     */
+    public List<String> getHottestMethods(String owner, String projectName) {
+        String cypher = """
+            MATCH (p:Project {owner: $owner, name: $projectName})-[:HAS_METHOD]->(m:Method)
+            RETURN m.fullyQualifiedName AS fqn
+            ORDER BY COALESCE(m.hotness, 0) DESC
+            LIMIT 20
+            """;
+        return client.query(cypher)
+                .bind(owner).to("owner")
+                .bind(projectName).to("projectName")
+                .fetch().all()
+                .stream()
+                .map(row -> (String) row.get("fqn"))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Calculate and update hotness for all methods using depth-first traversal.
+     * Hotness = assignmentCount + arithmeticCount + loopCount + sum of hotness of called methods
+     */
+    public void calculateAndUpdateMethodHotness() {
+        System.out.println("Starting method hotness calculation...");
+        
+        // First, reset all hotness values to base complexity
+        String resetQuery = """
+            MATCH (m:Method)
+            SET m.hotness = COALESCE(m.assignmentCount, 0) + 
+                           COALESCE(m.arithmeticCount, 0) + 
+                           COALESCE(m.loopCount, 0)
+            """;
+        client.query(resetQuery).run();
+        
+        // Get all methods for processing
+        String getAllMethodsQuery = """
+            MATCH (m:Method)
+            RETURN m.fullyQualifiedName AS fqn, m.owner AS owner
+            """;
+        
+        Collection<Map<String, Object>> allMethodsCollection = client.query(getAllMethodsQuery)
+                .fetch().all();
+        List<Map<String, Object>> allMethods = new ArrayList<>(allMethodsCollection);
+        
+        System.out.println("Found " + allMethods.size() + " methods to process");
+        
+        // Track visited methods to avoid infinite loops
+        Set<String> visitedMethods = new HashSet<>();
+        
+        // Process each method
+        int processed = 0;
+        for (Map<String, Object> method : allMethods) {
+            String fqn = (String) method.get("fqn");
+            String owner = (String) method.get("owner");
+            String methodKey = owner + ":" + fqn;
+            
+            if (!visitedMethods.contains(methodKey)) {
+                calculateMethodHotnessRecursive(owner, fqn, visitedMethods, new HashSet<>());
+                processed++;
+                
+                if (processed % 100 == 0) {
+                    System.out.println("Processed " + processed + " methods out of " + allMethods.size());
+                }
+            }
+        }
+        
+        System.out.println("Method hotness calculation completed");
+    }
+    
+    /**
+     * Recursively calculate hotness for a method using depth-first traversal
+     */
+    private float calculateMethodHotnessRecursive(String owner, String fqn, 
+                                                 Set<String> globalVisited, 
+                                                 Set<String> currentPath) {
+        String methodKey = owner + ":" + fqn;
+        
+        // Check for cycles in current path
+        if (currentPath.contains(methodKey)) {
+            return 0.0f; // Avoid infinite recursion
+        }
+        
+        // If already calculated globally, return cached value
+        if (globalVisited.contains(methodKey)) {
+            String getHotnessQuery = """
+                MATCH (m:Method {owner: $owner, fullyQualifiedName: $fqn})
+                RETURN COALESCE(m.hotness, 0) AS hotness
+                """;
+            return client.query(getHotnessQuery)
+                    .bind(owner).to("owner")
+                    .bind(fqn).to("fqn")
+                    .fetch().one()
+                    .map(row -> ((Number) row.get("hotness")).floatValue())
+                    .orElse(0.0f);
+        }
+        
+        // Add to current path
+        currentPath.add(methodKey);
+        
+        // Get base complexity
+        String getBaseComplexityQuery = """
+            MATCH (m:Method {owner: $owner, fullyQualifiedName: $fqn})
+            RETURN COALESCE(m.assignmentCount, 0) AS assignments,
+                   COALESCE(m.arithmeticCount, 0) AS arithmetic,
+                   COALESCE(m.loopCount, 0) AS loops
+            """;
+        
+        float baseComplexity = client.query(getBaseComplexityQuery)
+                .bind(owner).to("owner")
+                .bind(fqn).to("fqn")
+                .fetch().one()
+                .map(row -> {
+                    int assignments = ((Number) row.get("assignments")).intValue();
+                    int arithmetic = ((Number) row.get("arithmetic")).intValue();
+                    int loops = ((Number) row.get("loops")).intValue();
+                    return (float) (1 + 2 * assignments + arithmetic + 100 * loops);    // Simplicistic hotness formula
+                })
+                .orElse(0.0f);
+        
+        // Get called methods
+        String getCalledMethodsQuery = """
+            MATCH (m:Method {owner: $owner, fullyQualifiedName: $fqn})-[:CALLS]->(called:Method)
+            RETURN called.owner AS calledOwner, called.fullyQualifiedName AS calledFqn
+            """;
+        
+        Collection<Map<String, Object>> calledMethodsCollection = client.query(getCalledMethodsQuery)
+                .bind(owner).to("owner")
+                .bind(fqn).to("fqn")
+                .fetch().all();
+        List<Map<String, Object>> calledMethods = new ArrayList<>(calledMethodsCollection);
+        
+        // Calculate sum of called methods' hotness
+        float calledHotnessSum = 0.0f;
+        for (Map<String, Object> calledMethod : calledMethods) {
+            String calledOwner = (String) calledMethod.get("calledOwner");
+            String calledFqn = (String) calledMethod.get("calledFqn");
+            
+            float calledHotness = calculateMethodHotnessRecursive(calledOwner, calledFqn, 
+                                                                globalVisited, currentPath);
+            
+            // If this is a recursive call (method calls itself), square the hotness
+            String calledMethodKey = calledOwner + ":" + calledFqn;
+            if (calledMethodKey.equals(methodKey)) {
+                calledHotness = baseComplexity * baseComplexity;
+            }
+            
+            calledHotnessSum += calledHotness + 10; // Add 10 for each called method
+        }
+        
+        // Calculate total hotness
+        float totalHotness = baseComplexity + calledHotnessSum;
+        
+        // Update method hotness in database
+        String updateHotnessQuery = """
+            MATCH (m:Method {owner: $owner, fullyQualifiedName: $fqn})
+            SET m.hotness = $hotness
+            """;
+        client.query(updateHotnessQuery)
+                .bind(owner).to("owner")
+                .bind(fqn).to("fqn")
+                .bind(totalHotness).to("hotness")
+                .run();
+        
+        // Remove from current path and add to global visited
+        currentPath.remove(methodKey);
+        globalVisited.add(methodKey);
+        
+        return totalHotness;
     }
 }

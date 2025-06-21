@@ -19,7 +19,12 @@ public class Method {
 
     private Integer lines;
     private Integer logicPaths;
-    private float hotness;
+    private Float hotness;
+    
+    // Method complexity metrics for hotness calculation
+    private Integer assignmentCount;
+    private Integer arithmeticCount;
+    private Integer loopCount;
     
 //    private String projectId; // ridondanze, da valutare se utile
 
