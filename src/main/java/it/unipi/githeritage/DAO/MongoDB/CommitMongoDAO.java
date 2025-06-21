@@ -11,6 +11,8 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
+import static java.lang.Math.max;
+
 @Repository
 public class CommitMongoDAO {
 
@@ -19,7 +21,7 @@ public class CommitMongoDAO {
 
     public List<Commit> getCommitsPaginated(String owner, String projectName, int page, int pageSize) {
         try {
-            int skip = (page - 1) * pageSize;
+            int skip = max((page - 1) * pageSize,0);
 
             Aggregation aggregation = Aggregation.newAggregation(
                     // 1. Match per progetto

@@ -27,7 +27,7 @@ public interface NeoProjectRepository extends Neo4jRepository<Project, String> {
 
     /** Controlla se user collabora sul progetto (owner+projectName) */
     @Query("""
-       MATCH (u:User {username: $username})-[:COLLABORATES_ON]->(p:Project {owner: $owner, name: $projectName})
+       MATCH (u:User {username: $username})-[:COLLABORATES_ON]->(p:Project {owner: $owner, projectName: $projectName})
        RETURN COUNT(p)>0
     """)
     boolean isCollaboratorByOwnerAndName(String username, String owner, String projectName);

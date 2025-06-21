@@ -10,6 +10,5 @@ import org.springframework.data.annotation.Id;
 @NoArgsConstructor
 public class NeoUserDTO {
     @Id
-    private String id;
     private String username;
 }

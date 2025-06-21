@@ -134,13 +134,19 @@ public class UserService {
         }
     }
 
+    // no need to update on neo4j because it contains only username that cannot
+    // be modified
     public UserDTO editUser(UserDTO userDTO) {
         return UserDTO.fromUser(userMongoDAO.editUser(userDTO));
     }
 
     public UserDTO getUser(String username) {
-        return mongoUserRepository.findByUsername(username)
+        UserDTO ret = mongoUserRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found: " + username));
+        ret.setPassword(null);
+        ret.setCommentIds(null);
+        ret.setCommitIds(null);
+        return ret;
     }
 
     public List<String> getFollowersUsernames(String username) {

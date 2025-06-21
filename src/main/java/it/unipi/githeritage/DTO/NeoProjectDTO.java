@@ -12,5 +12,6 @@ public class NeoProjectDTO {
     @Id
     private String id;
     private String owner;
-    private String name;
+    private String projectName;
+    private String packageName;
 }

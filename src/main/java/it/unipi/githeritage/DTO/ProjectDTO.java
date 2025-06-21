@@ -27,6 +27,7 @@ public class ProjectDTO {
     private String description;
     private String version;
     private Instant creationDate;
+    private String packageName;
 
     private List<String> administrators;
     private List<Comment> comments;

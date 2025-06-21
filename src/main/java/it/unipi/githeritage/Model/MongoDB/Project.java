@@ -32,6 +32,7 @@ public class Project {
     private String owner;
     private String version;
     private Instant creationDate;
+    private String packageName;
 
     private List<String> administrators;
     private List<String> fileIds;

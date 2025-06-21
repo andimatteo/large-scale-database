@@ -2,16 +2,11 @@ package it.unipi.githeritage.DAO.MongoDB;
 
 import com.mongodb.ReadConcern;
 import com.mongodb.ReadPreference;
-import io.netty.channel.unix.RawUnixChannelOption;
 import it.unipi.githeritage.DTO.*;
 import it.unipi.githeritage.Model.MongoDB.Project;
-import it.unipi.githeritage.Model.MongoDB.User;
 import it.unipi.githeritage.Repository.MongoDB.MongoProjectRepository;
 import it.unipi.githeritage.Repository.MongoDB.MongoUserRepository;
-import org.bson.types.ObjectId;
-import org.springframework.data.mongodb.core.aggregation.ArrayOperators.Filter;
 
-import org.bson.Document;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -20,7 +15,6 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.stereotype.Repository;
 
 import java.time.*;
-import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -229,7 +223,7 @@ public class ProjectMongoDAO {
                 .getMappedResults();
     }
 
-    public List<ContribDTO> getAllTimeByProject(String projectId, int months) {
+    public List<ContribDTO> getLastMonthsTimeByProject(String projectId, int months) {
         List<AggregationOperation> pipeline = new ArrayList<>();
 
         // 1. Match progetto
@@ -271,7 +265,39 @@ public class ProjectMongoDAO {
                 .getMappedResults();
     }
 
-    public List<ContribDTO> getAllTimeByProject(String owner, String projectName, int months) {
+    public List<ContribDTO> getAllTimeByProject(String owner, String projectName) {
+        List<AggregationOperation> pipeline = new ArrayList<>();
+
+        // 1. Match progetto
+        pipeline.add(Aggregation.match(Criteria.where("owner").is(owner).and("name").is(projectName)));
+
+        // 2. Lookup dei commit
+        pipeline.add(Aggregation.lookup("Commits", "commitIds", "_id", "commitList"));
+
+        // 3. Unwind
+        pipeline.add(Aggregation.unwind("commitList"));
+
+        // 5. Group per autore
+        pipeline.add(Aggregation.group("commitList.author")
+                .sum("commitList.linesAdded").as("linesAdded")
+                .max("commitList.timestamp").as("lastContribution"));
+
+        // 6. Project
+        pipeline.add(Aggregation.project("linesAdded", "lastContribution")
+                .and("_id").as("username"));
+
+        // 7. Ordinamento e limite
+        pipeline.add(Aggregation.sort(Sort.Direction.DESC, "linesAdded"));
+        pipeline.add(Aggregation.limit(100));
+
+        Aggregation agg = Aggregation.newAggregation(pipeline);
+
+        return mongoTemplate
+                .aggregate(agg, "Projects", ContribDTO.class)
+                .getMappedResults();
+    }
+
+    public List<ContribDTO> getLastMonthsTimeByProject(String owner, String projectName, int months) {
         List<AggregationOperation> pipeline = new ArrayList<>();
 
         // 1. Match progetto

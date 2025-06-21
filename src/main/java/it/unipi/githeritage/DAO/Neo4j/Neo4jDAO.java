@@ -70,22 +70,22 @@ public class Neo4jDAO {
 
     public List<String> firstLevelDependencies(String owner, String projectName) {
         String cypher = """
-            MATCH (p:Project {owner: $owner, name: $projectName})-[:DEPENDS_ON]->(d:Project)
-            RETURN d.id AS depId
+            MATCH (p:Project {owner: $owner, projectName: $projectName})-[:DEPENDS_ON]->(d:Project)
+            RETURN d.packageName AS dependency
             """;
         return client.query(cypher)
                 .bind(owner).to("owner")
                 .bind(projectName).to("projectName")
                 .fetch().all()
                 .stream()
-                .map(m -> (String) m.get("depId"))
+                .map(m -> (String) m.get("dependency"))
                 .collect(Collectors.toList());
     }
 
     public List<String> recursiveDependencies(String projectId) {
         String cypher = """
-            MATCH (p:Project {id: $projectId})-[:DEPENDS_ON*]->(d:Project)
-            RETURN DISTINCT d.id AS depId
+            MATCH (p:Project {id: $projectId})-[:DEPENDS_ON*1..20]->(d:Project)
+            RETURN DISTINCT d.packagename AS dependency
             LIMIT $limit
             """;
         return client.query(cypher)
@@ -93,14 +93,14 @@ public class Neo4jDAO {
                 .bind(200).to("limit")
                 .fetch().all()
                 .stream()
-                .map(m -> (String) m.get("depId"))
+                .map(m -> (String) m.get("dependency"))
                 .collect(Collectors.toList());
     }
 
     public List<String> recursiveDependencies(String owner, String projectName) {
         String cypher = """
-            MATCH (p:Project {owner: $owner, name: $projectName})-[:DEPENDS_ON*]->(d:Project)
-            RETURN DISTINCT d.id AS depId
+            MATCH (p:Project {owner: $owner, projectName: $projectName})-[:DEPENDS_ON*]->(d:Project)
+            RETURN DISTINCT d.packageName AS dependency
             LIMIT $limit
             """;
         return client.query(cypher)
@@ -109,14 +109,14 @@ public class Neo4jDAO {
                 .bind(200).to("limit")
                 .fetch().all()
                 .stream()
-                .map(m -> (String) m.get("depId"))
+                .map(m -> (String) m.get("dependency"))
                 .collect(Collectors.toList());
     }
 
     public List<String> recursiveDependenciesPaginated(String projectId, int page) {
         String cypher = """
-            MATCH (p:Project {id: $projectId})-[:DEPENDS_ON*1..]->(d:Project)
-            RETURN DISTINCT d.id AS dependencyId
+            MATCH (p:Project {id: $projectId})-[:DEPENDS_ON*1..20]->(d:Project)
+            RETURN DISTINCT d.packageName AS dependency
             SKIP $skip
             LIMIT $limit
             """;
@@ -126,14 +126,14 @@ public class Neo4jDAO {
                 .bind(PAGE_SIZE).to("limit")
                 .fetch().all()
                 .stream()
-                .map(row -> (String) row.get("dependencyId"))
+                .map(row -> (String) row.get("dependency"))
                 .collect(Collectors.toList());
     }
 
     public List<String> recursiveDependenciesPaginated(String owner, String projectName, int page) {
         String cypher = """
-            MATCH (p:Project {owner: $owner, name: $projectName})-[:DEPENDS_ON*1..]->(d:Project)
-            RETURN DISTINCT d.id AS dependencyId
+            MATCH (p:Project {owner: $owner, projectName: $projectName})-[:DEPENDS_ON*1..20]->(d:Project)
+            RETURN DISTINCT d.packageName AS dependency
             SKIP $skip
             LIMIT $limit
             """;
@@ -144,7 +144,7 @@ public class Neo4jDAO {
                 .bind(PAGE_SIZE).to("limit")
                 .fetch().all()
                 .stream()
-                .map(row -> (String) row.get("dependencyId"))
+                .map(row -> (String) row.get("dependency"))
                 .collect(Collectors.toList());
     }
 
@@ -165,7 +165,7 @@ public class Neo4jDAO {
 
     public List<String> projectMethods(String owner, String projectName) {
         String cypher = """
-            MATCH (p:Project {owner: $owner, name: $projectName})-[:HAS_METHOD]->(m:Method)
+            MATCH (p:Project {owner: $owner, projectName: $projectName})-[:HAS_METHOD]->(m:Method)
             RETURN m.fullyQualifiedName AS sig
             LIMIT $limit
             """;
@@ -198,7 +198,7 @@ public class Neo4jDAO {
 
     public List<String> projectMethodsPaginated(String owner, String projectName, int page) {
         String cypher = """
-            MATCH (p:Project {owner: $owner, name: $projectName})-[:HAS_METHOD]->(m:Method)
+            MATCH (p:Project {owner: $owner, projectName: $projectName})-[:HAS_METHOD]->(m:Method)
             RETURN m.fullyQualifiedName AS sig
             SKIP $skip
             LIMIT $limit
@@ -241,11 +241,19 @@ public class Neo4jDAO {
         }
     }
 
+    // todo add package name
     public void mergeProject(String projectId, String projectName, String owner) {
-        client.query("MERGE (p:Project {id: $id, name: $name, owner: $owner})")
-                .bind(projectId).to("id")
-                .bind(projectName).to("name")
-                .bind(owner).to("owner")
+        client.query("""
+            MERGE (p:Project { id: $id })
+            SET p.projectName = $projectName,
+                p.owner       = $owner
+            WITH p
+            MATCH (u:User { username: $owner })
+            MERGE (u)-[:COLLABORATES_ON]->(p)
+            """)
+                .bind(projectId  ).to("id")
+                .bind(projectName).to("projectName")
+                .bind(owner      ).to("owner")
                 .run();
     }
 
@@ -555,22 +563,22 @@ public class Neo4jDAO {
     public Optional<PathDTO> getProjectPath(String userA, String userB) {
 
         String cypher = """
-        MATCH (a:User {username: $userA})
-        MATCH (b:User {username: $userB})
-        MATCH p = shortestPath( (a)-[:COLLABORATES_ON*1..9]-(b) )
-        WHERE p IS NOT NULL          // <— evita la riga “tutta null”
-        WITH nodes(p) AS n, length(p) AS len
-        RETURN
-            toInteger(len / 2) AS distance,
-            [ i IN range(0, size(n)-1) |
-                CASE
-                    WHEN n[i]:User
-                         THEN 'USER: '    + coalesce(n[i].username,'<unknown>')
-                    ELSE 'PROJECT: ' + coalesce(n[i].owner,'<no-owner>')
-                                       + '/' +
-                                       coalesce(n[i].name , coalesce(n[i].id,'<no-name>'))
-                END
-            ] AS nodes
+            MATCH (a:User {username: $userA})
+            MATCH (b:User {username: $userB})
+            MATCH p = shortestPath( (a)-[:COLLABORATES_ON*]-(b) )
+            WHERE p IS NOT NULL          // <— evita la riga “tutta null”
+            WITH nodes(p) AS n, length(p) AS len
+            RETURN
+                toInteger(len / 2) AS distance,
+                [ i IN range(0, size(n)-1) |
+                    CASE
+                        WHEN n[i]:User
+                             THEN 'USER: '    + coalesce(n[i].username,'<unknown>')
+                        ELSE 'PROJECT: ' + coalesce(n[i].owner,'<no-owner>')
+                                           + '/' +
+                                           coalesce(n[i].name , coalesce(n[i].id,'<no-name>'))
+                    END
+                ] AS nodes
         """;
 
         return client.query(cypher)
@@ -617,7 +625,7 @@ public class Neo4jDAO {
 
     public Optional<PathDTO> getVulnerabilityPathByOwnerAndName(String owner, String projectName) {
         String cypher = """
-            MATCH (start:Project {owner: $owner, name: $projectName})
+            MATCH (start:Project {owner: $owner, projectName: $projectName})
             MATCH path = shortestPath(
               (start)-[:DEPENDS_ON*1..20]->(v:Project {vulnerability: true})
             )
@@ -705,7 +713,7 @@ public class Neo4jDAO {
      */
     public List<String> getHottestMethods(String owner, String projectName) {
         String cypher = """
-            MATCH (p:Project {owner: $owner, name: $projectName})-[:HAS_METHOD]->(m:Method)
+            MATCH (p:Project {owner: $owner, projectName: $projectName})-[:HAS_METHOD]->(m:Method)
             RETURN m.fullyQualifiedName AS fqn
             ORDER BY COALESCE(m.hotness, 0) DESC
             LIMIT 20

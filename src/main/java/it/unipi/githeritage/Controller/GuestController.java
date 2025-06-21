@@ -3,21 +3,18 @@ package it.unipi.githeritage.Controller;
 import it.unipi.githeritage.DTO.*;
 import it.unipi.githeritage.Model.MongoDB.Commit;
 import it.unipi.githeritage.Model.MongoDB.File;
-import it.unipi.githeritage.Model.MongoDB.Project;
 import it.unipi.githeritage.Service.FileService;
 import it.unipi.githeritage.Service.ProjectService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.parameters.P;
 import org.springframework.web.bind.annotation.*;
 
 import it.unipi.githeritage.Service.UserService;
 import lombok.AllArgsConstructor;
 
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/guest")
@@ -68,7 +65,6 @@ public class GuestController {
 
     // read-concern: local
     // preference: nearest
-    // todo test with commit data
     // GET /api/guest/user/{username}/distribution : get user info with commit distributions
     @GetMapping("/user/{username}/distribution")
     public ResponseEntity<ResponseDTO<List<DailyCommitCountDTO>>> getUserWithDistribution(@PathVariable String username) {
@@ -188,27 +184,6 @@ public class GuestController {
                     .status(HttpStatus.FORBIDDEN)
                     .body(new ResponseDTO<>(false,
                             "Error retrieving commits for project /" + owner + '/' + projectName + ": " + e.getMessage(),
-                            null));
-        }
-    }
-
-    // GET /api/guest/project/commit/{page}?projectId={projectId} : see all commits for project (paginated in
-    //                                                                      pages of 100)
-    @GetMapping("/commit/{projectId}/{page}")
-    public ResponseEntity<ResponseDTO<List<Commit>>> getCommitsByPage(
-            @PathVariable String projectId,
-            @PathVariable int page) {
-        try {
-            List<Commit> commits = projectService.getCommitsByPage(projectId, page);
-            return ResponseEntity
-                    .status(HttpStatus.OK)
-                    .body(new ResponseDTO<>(true, "", commits));
-        } catch (Exception e) {
-            return ResponseEntity
-                    .status(HttpStatus.FORBIDDEN)
-                    .body(new ResponseDTO<>(false,
-                            "Error retrieving page " + page + " of commits for project " + projectId + ": "
-                                    + e.getMessage(),
                             null));
         }
     }
@@ -370,33 +345,6 @@ public class GuestController {
     }
 
 
-
-    // read-concern: local
-    // preference: nearest
-    // GET /api/guest/contributors/{projectId} : get leaderboard of contributors for project
-    @GetMapping("/contributors/{projectId}/{months}")
-    public ResponseEntity<ResponseDTO<List<ContribDTO>>> getAllTimeContributors(
-            @PathVariable String projectId,
-            @PathVariable Integer months
-    ) {
-        if (months == null) {
-            months = 0;
-        }
-        try {
-            List<ContribDTO> board = projectService.allTimeContributorsId(projectId,months);
-            return ResponseEntity.ok(new ResponseDTO<>(true, "", board));
-        } catch (Exception e) {
-            return ResponseEntity
-                    .status(HttpStatus.FORBIDDEN)
-                    .body(new ResponseDTO<>(false,
-                            "Error computing all-time leaderboard for project " + projectId
-                                    + ": " + e.getMessage(),
-                            null));
-        }
-    }
-
-
-
     // read-concern: local
     // preference: nearest
     // GET /api/guest/contributors/{owner}/{projectName}?months=months : get leaderboard of contributors for project
@@ -410,7 +358,7 @@ public class GuestController {
             months = 0;
         }
         try {
-            List<ContribDTO> board = projectService.allTimeContributorsOwnerProjectName(owner, projectName, months);
+            List<ContribDTO> board = projectService.lastMonthsContributorsOwnerProjectName(owner, projectName, months);
             return ResponseEntity.ok(new ResponseDTO<>(true, "", board));
         } catch (Exception e) {
             return ResponseEntity
@@ -418,6 +366,27 @@ public class GuestController {
                     .body(new ResponseDTO<>(false,
                             "Error computing all-time leaderboard for project /" + owner +
                             '/' + projectName + ": " + e.getMessage(),
+                            null));
+        }
+    }
+
+    // read-concern: local
+    // preference: nearest
+    // GET /api/guest/contributors/{owner}/{projectName}?months=months : get leaderboard of contributors for project
+    @GetMapping("/contributors/{owner}/{projectName}")
+    public ResponseEntity<ResponseDTO<List<ContribDTO>>> getAllTimeContributors(
+            @PathVariable String owner,
+            @PathVariable String projectName
+    ) {
+        try {
+            List<ContribDTO> board = projectService.allTimeContributorsOwnerProjectName(owner, projectName);
+            return ResponseEntity.ok(new ResponseDTO<>(true, "", board));
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.FORBIDDEN)
+                    .body(new ResponseDTO<>(false,
+                            "Error computing all-time leaderboard for project /" + owner +
+                                    '/' + projectName + ": " + e.getMessage(),
                             null));
         }
     }
@@ -482,26 +451,7 @@ public class GuestController {
     ) {
         try {
             List<String> deps = projectService.getAllRecursiveDeps(owner,projectName);
-            return ResponseEntity.ok(new ResponseDTO<>(true, "", deps));
-        } catch (Exception e) {
-            return ResponseEntity
-                    .status(HttpStatus.FORBIDDEN)
-                    .body(new ResponseDTO<>(false,
-                            "Error computing all-time leaderboard: " + e.getMessage(),
-                            null));
-        }
-    }
-
-    // todo rivedere query con neo4j
-    // GET /api/guest/dependencies/recursive/{projectId}/{page} : list all project dependencies in pages of 100
-    @GetMapping("/dependencies/recursive/{projectId}/{page}")
-    public ResponseEntity<ResponseDTO<List<String>>> getRecursiveDependenciesPaginated(
-            @PathVariable String projectId,
-            @PathVariable int page
-    ) {
-        try {
-            List<String> deps = projectService.getAllRecursiveDepsPaginated(projectId,page);
-            return ResponseEntity.ok(new ResponseDTO<>(true, "", deps));
+            return ResponseEntity.ok(new ResponseDTO<>(true, "Recursive Dependencies Found", deps));
         } catch (Exception e) {
             return ResponseEntity
                     .status(HttpStatus.FORBIDDEN)
@@ -556,26 +506,7 @@ public class GuestController {
     ) {
         try {
             List<String> methods = projectService.getAllMethods(owner,projectName);
-            return ResponseEntity.ok(new ResponseDTO<>(true, "", methods));
-        } catch (Exception e) {
-            return ResponseEntity
-                    .status(HttpStatus.FORBIDDEN)
-                    .body(new ResponseDTO<>(false,
-                            "Error computing all-time leaderboard: " + e.getMessage(),
-                            null));
-        }
-    }
-
-    // todo rivedere query con neo4j
-    // GET /api/guest/methods/{projectId}/{page} : list all project methods in pages of 100
-    @GetMapping("/methods/{projectId}/{page}")
-    public ResponseEntity<ResponseDTO<List<String>>> getProjectMethodsPaginated(
-            @PathVariable String projectId,
-            @PathVariable int page
-    ) {
-        try {
-            List<String> methods = projectService.getAllMethodsPaginated(projectId,page);
-            return ResponseEntity.ok(new ResponseDTO<>(true, "Methods found", methods));
+            return ResponseEntity.ok(new ResponseDTO<>(true, "Found methods", methods));
         } catch (Exception e) {
             return ResponseEntity
                     .status(HttpStatus.FORBIDDEN)

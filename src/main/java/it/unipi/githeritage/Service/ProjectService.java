@@ -3,7 +3,6 @@ package it.unipi.githeritage.Service;
 import com.google.common.collect.Sets;
 import com.mongodb.client.ClientSession;
 import com.mongodb.client.MongoClient;
-import io.netty.channel.unix.RawUnixChannelOption;
 import it.unipi.githeritage.DAO.MongoDB.CommitMongoDAO;
 import it.unipi.githeritage.DAO.MongoDB.ProjectMongoDAO;
 import it.unipi.githeritage.DAO.Neo4j.Neo4jDAO;
@@ -180,11 +179,15 @@ public class ProjectService {
     }
 
     public List<ContribDTO> allTimeContributorsId(String projectId, int months) {
-        return projectMongoDAO.getAllTimeByProject(projectId,months);
+        return projectMongoDAO.getLastMonthsTimeByProject(projectId,months);
     }
 
-    public List<ContribDTO> allTimeContributorsOwnerProjectName(String owner, String projectName, int months) {
-        return projectMongoDAO.getAllTimeByProject(owner,projectName,months);
+    public List<ContribDTO> lastMonthsContributorsOwnerProjectName(String owner, String projectName, int months) {
+        return projectMongoDAO.getLastMonthsTimeByProject(owner,projectName,months);
+    }
+
+    public List<ContribDTO> allTimeContributorsOwnerProjectName(String owner, String projectName) {
+        return projectMongoDAO.getAllTimeByProject(owner,projectName);
     }
 
     public List<String> getFirstLevelDeps(String projectId) {
