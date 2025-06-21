@@ -278,6 +278,8 @@ public class ProjectsMongo2Neo4j implements CommandLineRunner {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        
     }
     
     private void configureJavaParser() {
