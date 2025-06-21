@@ -2,18 +2,24 @@ package it.unipi.githeritage.DAO.Neo4j;
 
 import it.unipi.githeritage.DTO.PathDTO;
 import it.unipi.githeritage.DTO.ProjectDTO;
+import it.unipi.githeritage.Model.Neo4j.Project;
+import org.checkerframework.checker.units.qual.A;
+import org.neo4j.driver.summary.ResultSummary;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.neo4j.core.Neo4jClient;
+import org.springframework.data.neo4j.core.Neo4jTemplate;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Repository
 public class Neo4jDAO {
     private static final int PAGE_SIZE = 100;
     private final Neo4jClient client;
+
+    @Autowired
+    private Neo4jTemplate template;
 
     public Neo4jDAO(Neo4jClient client) {
         this.client = client;
@@ -231,6 +237,7 @@ public class Neo4jDAO {
         client.query("MERGE (p:Project {id: $id, name: $name})")
                 .bind(projectId).to("id")
                 .bind(name).to("name")
+                .bind(owner).to("owner")
                 .run();
     }
 
@@ -342,8 +349,7 @@ public class Neo4jDAO {
 
     public void relateProjectDependency(String projectId, String depProjectId) {
         client.query("""
-            MERGE (p1:Project {id: $projectId})
-            MERGE (p2:Project {id: $depProjectId})
+            MATCH (p1:Project {id: $projectId}), (p2:Project {id: $depProjectId})
             MERGE (p1)-[:DEPENDS_ON]->(p2)
             """)
                 .bind(projectId).to("projectId")
@@ -399,7 +405,7 @@ public class Neo4jDAO {
                 .bind(projectId).to("projectId")
                 .fetch().all()
                 .stream()
-                .map(m -> (String) m.get("sig"))
+                .map(m -> (String)m.get("sig"))
                 .collect(Collectors.toList());
     }
 
@@ -415,7 +421,7 @@ public class Neo4jDAO {
                 .bind(projectName).to("projectName")
                 .fetch().all()
                 .stream()
-                .map(m -> (String) m.get("sig"))
+                .map(m -> (String)m.get("sig"))
                 .collect(Collectors.toList());
     }
 
@@ -498,8 +504,9 @@ public class Neo4jDAO {
 
     public Optional<PathDTO> getFollowPath(String userA, String userB) {
         String cypher = """
-        MATCH (a:User {username: $userA}), (b:User {username: $userB})
-        MATCH p = shortestPath((a)-[:FOLLOWS*]-(b))
+        MATCH (a:User {username: $userA})
+        MATCH (b:User {username: $userB})
+        MATCH p = shortestPath((a)-[:FOLLOWS*1..8]-(b))
         RETURN 
           length(p)       AS dist,
           [n IN nodes(p) | n.username] AS nodes
@@ -517,29 +524,39 @@ public class Neo4jDAO {
     }
 
     public Optional<PathDTO> getProjectPath(String userA, String userB) {
+
         String cypher = """
-        MATCH (a:User {username: $userA}), (b:User {username: $userB})
-        MATCH p = shortestPath((a)-[:COLLABORATES_ON*]-(b))
-        RETURN 
-          toInteger(length(p)/2) AS dist,
-          [n IN nodes(p) | 
-             CASE 
-               WHEN n:User THEN n.username 
-               ELSE n.owner + '/' + n.name 
-             END
-          ] AS nodes
+        MATCH (a:User {username: $userA})
+        MATCH (b:User {username: $userB})
+        MATCH p = shortestPath( (a)-[:COLLABORATES_ON*1..9]-(b) )
+        WHERE p IS NOT NULL          // <— evita la riga “tutta null”
+        WITH nodes(p) AS n, length(p) AS len
+        RETURN
+            toInteger(len / 2) AS distance,
+            [ i IN range(0, size(n)-1) |
+                CASE
+                    WHEN n[i]:User
+                         THEN 'USER: '    + coalesce(n[i].username,'<unknown>')
+                    ELSE 'PROJECT: ' + coalesce(n[i].owner,'<no-owner>')
+                                       + '/' +
+                                       coalesce(n[i].name , coalesce(n[i].id,'<no-name>'))
+                END
+            ] AS nodes
         """;
+
         return client.query(cypher)
                 .bind(userA).to("userA")
                 .bind(userB).to("userB")
-                .fetch().one()
-                .map(record -> {
-                    int dist = ((Number) record.get("dist")).intValue();
+                .fetch()
+                .one()                   // Optional<Map<String,Object>>
+                .map(rec -> {
+                    int dist = ((Number) rec.get("distance")).intValue();
                     @SuppressWarnings("unchecked")
-                    List<String> path = (List<String>) record.get("nodes");
-                    return new PathDTO(dist, path);
+                    List<String> seq = (List<String>) rec.get("nodes");
+                    return new PathDTO(dist, seq);
                 });
     }
+
 
 
     public Optional<PathDTO> getVulnerabilityPath(String projectId) {
@@ -547,7 +564,7 @@ public class Neo4jDAO {
         MATCH (start:Project {id: $projectId})
         // cerchiamo il progetto vulnerabile più vicino
         MATCH path = shortestPath(
-          (start)-[:DEPENDS_ON*]->(v:Project {vulnerability: true})
+          (start)-[:DEPENDS_ON*1..20]->(v:Project {vulnerability: true})
         )
         RETURN 
           length(path) AS dist,
@@ -573,7 +590,7 @@ public class Neo4jDAO {
         String cypher = """
             MATCH (start:Project {owner: $owner, name: $projectName})
             MATCH path = shortestPath(
-              (start)-[:DEPENDS_ON*]->(v:Project {vulnerability: true})
+              (start)-[:DEPENDS_ON*1..20]->(v:Project {vulnerability: true})
             )
             RETURN 
               length(path) AS dist,

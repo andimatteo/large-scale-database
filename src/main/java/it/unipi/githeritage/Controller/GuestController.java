@@ -36,10 +36,6 @@ public class GuestController {
     private final FileService fileService;
 
     //////////////////////////////////////
-    //         CRUD OPERATIONS          //
-    //////////////////////////////////////
-
-    //////////////////////////////////////
     //              USER                //
     //////////////////////////////////////
 
@@ -70,6 +66,8 @@ public class GuestController {
         }
     }
 
+    // read-concern: local
+    // preference: nearest
     // todo test with commit data
     // GET /api/guest/user/{username}/distribution : get user info with commit distributions
     @GetMapping("/user/{username}/distribution")
@@ -115,6 +113,7 @@ public class GuestController {
         }
     }
 
+
     // GET /api/guest/project/files/{username}/{projectName} : get project files (first 100)
     @GetMapping("/project/files/{owner}/{projectName}")
     public ResponseEntity<ResponseDTO<List<String>>> getProjectFiles(@PathVariable String owner,
@@ -152,12 +151,10 @@ public class GuestController {
         }
     }
 
-    // per quanto riguarda i commit non e' necessario un DTO, viene ritornato esattamente
-    // il documento presente in mongoDB
-
     //////////////////////////////////////
     //             COMMIT               //
     //////////////////////////////////////
+
 
     // GET /api/guest/commit
     @GetMapping("/commit/{projectId}")
@@ -277,7 +274,6 @@ public class GuestController {
         }
     }
 
-    // todo test
     // GET /api/guest/followers?username=username : get all user followers
     @GetMapping("/followers/{username}")
     public ResponseEntity<ResponseDTO<List<String>>> getFollowers(@PathVariable String username) {
@@ -291,8 +287,6 @@ public class GuestController {
         }
     }
 
-
-    // todo test
     // GET /api/guest/follows?username=username : get all followed by user
     @GetMapping("/follows/{username}")
     public ResponseEntity<ResponseDTO<List<String>>> getFollows(@PathVariable String username) {
@@ -306,8 +300,8 @@ public class GuestController {
         }
     }
 
-
-    // todo test
+    // read-concern: local
+    // preference: nearest
     // GET /api/guest/leaderboard/projects : get all time leaderboard (progetti con la media piu' alta)
     @GetMapping("/leaderboard")
     public ResponseEntity<ResponseDTO<List<LeaderboardProjectDTO>>> allTimeLeaderboard() {
@@ -321,7 +315,8 @@ public class GuestController {
         }
     }
 
-    // todo test
+    // read-concern: local
+    // preference: nearest
     // GET /api/guest/leaderboard/{monthts} : get all time leaderboard (progetti con la media
     // piu' alta negli ultimi months months)
     @GetMapping("/leaderboard/{months}")
@@ -336,6 +331,9 @@ public class GuestController {
         }
     }
 
+
+    // read-concern: local
+    // preference: nearest
     // GET /api/guest/contriboard : get all time top contributors within platform
     @GetMapping("/contriboard")
     public ResponseEntity<ResponseDTO<List<ContribDTO>>> getAllTimeContriboard() {
@@ -351,6 +349,9 @@ public class GuestController {
         }
     }
 
+
+    // read-concern: local
+    // preference: nearest
     // GET /api/guest/contriboard/{months} : get last months top contributors within all platform
     @GetMapping("/contriboard/{months}")
     public ResponseEntity<ResponseDTO<List<ContribDTO>>> getLastMonthsContriboard(
@@ -369,6 +370,9 @@ public class GuestController {
     }
 
 
+
+    // read-concern: local
+    // preference: nearest
     // GET /api/guest/contributors/{projectId} : get leaderboard of contributors for project
     @GetMapping("/contributors/{projectId}/{months}")
     public ResponseEntity<ResponseDTO<List<ContribDTO>>> getAllTimeContributors(
@@ -392,6 +396,9 @@ public class GuestController {
     }
 
 
+
+    // read-concern: local
+    // preference: nearest
     // GET /api/guest/contributors/{owner}/{projectName}?months=months : get leaderboard of contributors for project
     @GetMapping("/contributors/{owner}/{projectName}/{months}")
     public ResponseEntity<ResponseDTO<List<ContribDTO>>> getAllTimeContributors(
@@ -415,7 +422,7 @@ public class GuestController {
         }
     }
 
-    // todo rivedere query con neo4j
+    // todo test con dati
     // GET /api/guest/dependencies?projectId=projectId : list all 1st level dependencies for project
     @GetMapping("/dependencies/{projectId}")
     public ResponseEntity<ResponseDTO<List<String>>> getFirstLevelDependencies(

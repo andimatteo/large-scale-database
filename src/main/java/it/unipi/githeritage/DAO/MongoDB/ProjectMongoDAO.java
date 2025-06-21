@@ -1,5 +1,7 @@
 package it.unipi.githeritage.DAO.MongoDB;
 
+import com.mongodb.ReadConcern;
+import com.mongodb.ReadPreference;
 import io.netty.channel.unix.RawUnixChannelOption;
 import it.unipi.githeritage.DTO.*;
 import it.unipi.githeritage.Model.MongoDB.Project;
@@ -43,6 +45,12 @@ public class ProjectMongoDAO {
             Instant now = Instant.now();
             Instant start = now.minus(364, ChronoUnit.DAYS).truncatedTo(ChronoUnit.DAYS);
 
+            AggregationOptions options = AggregationOptions.builder()
+                    .allowDiskUse(true)
+                    .readConcern(ReadConcern.LOCAL)
+                    .readPreference(ReadPreference.nearest())
+                    .build();
+
             Aggregation aggregation = Aggregation.newAggregation(
                     User.class,
                     Aggregation.match(Criteria.where("_id").is(username)),
@@ -57,7 +65,8 @@ public class ProjectMongoDAO {
                     Aggregation.group("day").count().as("count"),
                     Aggregation.project("count").and("day").previousOperation(),
                     Aggregation.sort(Sort.by(Sort.Direction.ASC, "day"))
-            );
+            )
+                    .withOptions(options);
 
             // obtained results but days may be missing
             AggregationResults<DailyCommitCountDTO> results =
@@ -88,6 +97,12 @@ public class ProjectMongoDAO {
     }
 
     public List<LeaderboardProjectDTO> getAllTimeLeaderboard() {
+        AggregationOptions options = AggregationOptions.builder()
+                .allowDiskUse(true)
+                .readConcern(ReadConcern.LOCAL)
+                .readPreference(ReadPreference.nearest())
+                .build();
+
         Aggregation agg = Aggregation.newAggregation(
                 Aggregation.unwind("comments"),
                 Aggregation.group("_id")
@@ -96,7 +111,8 @@ public class ProjectMongoDAO {
                         .avg("comments.stars").as("averageRating")
                         .count().as("commentCount"),
                 Aggregation.sort(Sort.by(Sort.Direction.DESC, "averageRating"))
-        );
+        )
+                .withOptions(options);
         return mongoTemplate
                 .aggregate(agg, "Projects", LeaderboardProjectDTO.class)
                 .getMappedResults();
@@ -110,6 +126,13 @@ public class ProjectMongoDAO {
                 .toInstant();
 
 //        System.out.println("cutoff: " + cutoff);
+
+        AggregationOptions options = AggregationOptions.builder()
+                .allowDiskUse(true)
+                .readConcern(ReadConcern.LOCAL)
+                .readPreference(ReadPreference.nearest())
+                .build();
+
         Aggregation agg = Aggregation.newAggregation(
                 // unwind dei commenti
                 Aggregation.unwind("comments"),
@@ -121,13 +144,22 @@ public class ProjectMongoDAO {
                         .avg("comments.stars").as("averageRating")
                         .count().as("commentCount"),
                 Aggregation.sort(Sort.by(Sort.Direction.DESC, "averageRating"))
-        );
+        )
+                .withOptions(options);
         return mongoTemplate
                 .aggregate(agg, "Projects", LeaderboardProjectDTO.class)
                 .getMappedResults();
     }
 
     public List<ContribDTO> getAllTimeContriboard() {
+
+        AggregationOptions options = AggregationOptions.builder()
+                .allowDiskUse(true)
+                .readConcern(ReadConcern.LOCAL)
+                .readPreference(ReadPreference.nearest())
+                .build();
+
+
         Aggregation agg = Aggregation.newAggregation(
                 // 1. Group by author
                 Aggregation.group("author")
@@ -140,7 +172,8 @@ public class ProjectMongoDAO {
                 Aggregation.sort(Sort.Direction.DESC, "linesAdded"),
                 // 4. Limit to top 100
                 Aggregation.limit(100)
-        );
+        )
+                .withOptions(options);
 
         return mongoTemplate
                 .aggregate(agg, "Commits", ContribDTO.class)
@@ -153,6 +186,12 @@ public class ProjectMongoDAO {
                 .minusMonths(months)
                 .truncatedTo(ChronoUnit.DAYS)
                 .toInstant();
+
+        AggregationOptions options = AggregationOptions.builder()
+                .allowDiskUse(true)
+                .readConcern(ReadConcern.LOCAL)
+                .readPreference(ReadPreference.nearest())
+                .build();
 
         Aggregation agg = Aggregation.newAggregation(
                 // 1. filtri sui commit recenti
@@ -167,7 +206,8 @@ public class ProjectMongoDAO {
                 // 4. Sort + limit
                 Aggregation.sort(Sort.Direction.DESC, "linesAdded"),
                 Aggregation.limit(100)
-        );
+        )
+                .withOptions(options);
 
         return mongoTemplate
                 .aggregate(agg, "Commits", ContribDTO.class)

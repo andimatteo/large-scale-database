@@ -1,7 +1,9 @@
 package it.unipi.githeritage.Service;
 
+import it.unipi.githeritage.DTO.NeoUserDTO;
 import it.unipi.githeritage.DTO.PathDTO;
 import it.unipi.githeritage.DTO.UserMetadataDTO;
+import it.unipi.githeritage.Model.MongoDB.User;
 import it.unipi.githeritage.Repository.MongoDB.MongoUserRepository;
 import it.unipi.githeritage.Repository.Neo4j.NeoUserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,14 +41,11 @@ public class UserService {
 
     public UserDTO addUser(UserDTO userDTO) {
         ClientSession session = mongoClient.startSession();
-        // todo vedere cosa fare con questa variabile neo4j
         Boolean neo = false;
         try {
-//            System.out.println("Starting transaction to add user: " + userDTO.getUsername());
             session.startTransaction();
             // Save the user in MongoDB
-            userDTO.setIsAdmin(false); // Default to non-admin
-            //userDTO.setRegistrationDate(LocalDate.now()); // Set registration date to current date
+            userDTO.setIsAdmin(true); // DEBUG: offline registration only of admin
             if (mongoUserRepository.existsById(userDTO.getUsername())) {
                 throw new RuntimeException("Username already exists");
             }
@@ -75,6 +74,52 @@ public class UserService {
     public Long deleteUser(String username) {
         return mongoUserRepository.deleteByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
+    public Long superUser(String username) {
+        ClientSession session = mongoClient.startSession();
+        try {
+            session.startTransaction();
+
+            // retrieve user
+            User user = mongoUserRepository.findById(username)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            // update admin field
+            user.setIsAdmin(true);
+
+            // update user
+            mongoUserRepository.save(user);
+
+            session.commitTransaction();
+
+            return 0L;
+        } catch (Exception e) {
+            throw new RuntimeException(e.getMessage());
+        }
+    }
+
+    public Long removeSuperUser(String username) {
+        ClientSession session = mongoClient.startSession();
+        try {
+            session.startTransaction();
+
+            // retrieve user
+            User user = mongoUserRepository.findById(username)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            // update admin field
+            user.setIsAdmin(false);
+
+            // update user
+            mongoUserRepository.save(user);
+
+            session.commitTransaction();
+
+            return 0L;
+        } catch (Exception e) {
+            throw new RuntimeException(e.getMessage());
+        }
     }
 
     public UserDTO getUserByUsername(String username) {
@@ -119,7 +164,7 @@ public class UserService {
     public boolean unfollowUser(String followerUsername, String followedUsername) {
         ClientSession session = mongoClient.startSession();
         try {
-            System.out.println("Starting transaction to unfollow user: " + followerUsername + " -> " + followedUsername);
+//            System.out.println("Starting transaction to unfollow user: " + followerUsername + " -> " + followedUsername);
             session.startTransaction();
             
             // Remove the FOLLOWS relationship in Neo4j
@@ -129,7 +174,7 @@ public class UserService {
             return true;
         } catch (Exception e) {
             session.abortTransaction();
-            System.err.println("Error unfollowing user: " + e.getMessage());
+//            System.err.println("Error unfollowing user: " + e.getMessage());
             return false;
         } finally {
             session.close();
@@ -146,7 +191,7 @@ public class UserService {
                 .orElse(new PathDTO(-1, List.of()));
     }
 
-    public List<it.unipi.githeritage.Model.Neo4j.User> discoverPeople(String username) {
+    public List<NeoUserDTO> discoverPeople(String username) {
         return neoUserRepository.findSuggestedPeople(username);
     }
 

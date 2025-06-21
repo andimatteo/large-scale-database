@@ -80,7 +80,7 @@ public class Project {
         // if present
         if (!administrators.contains(username))
             return false;
-        System.out.println("Eliminating administrator " + username);
+//        System.out.println("Eliminating administrator " + username);
         return administrators.remove(username);
     }
 }

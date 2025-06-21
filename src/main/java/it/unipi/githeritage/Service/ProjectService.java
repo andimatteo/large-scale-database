@@ -15,6 +15,7 @@ import it.unipi.githeritage.Model.Neo4j.Method;
 import it.unipi.githeritage.Repository.MongoDB.MongoCommitRepository;
 import it.unipi.githeritage.Repository.MongoDB.MongoFileRepository;
 import it.unipi.githeritage.Repository.MongoDB.MongoProjectRepository;
+import it.unipi.githeritage.Repository.MongoDB.MongoUserRepository;
 import it.unipi.githeritage.Repository.Neo4j.NeoMethodRepository;
 import it.unipi.githeritage.Repository.Neo4j.NeoProjectRepository;
 import lombok.AllArgsConstructor;
@@ -65,6 +66,8 @@ public class ProjectService {
 
     @Autowired
     private CommitMongoDAO commitMongoDAO;
+    @Autowired
+    private MongoUserRepository mongoUserRepository;
 
     public ProjectDTO addProject(ProjectDTO projectDTO) {
         ClientSession session = mongoClient.startSession();
@@ -347,7 +350,7 @@ public class ProjectService {
                         // 2) aggiorna Neo4j tramite DAO
                         // 2.1 nodi
                         neo4jDAO.mergeUser(owner);
-                        neo4jDAO.mergeProject(projectId, projectName);
+                        neo4jDAO.mergeProject(projectId, projectName, owner);
                         neo4jDAO.relateUserToProject(owner, projectId);
 
                         // 2.2 metodi e HAS_METHOD
@@ -569,7 +572,7 @@ public class ProjectService {
                         // 2) aggiorna Neo4j tramite DAO
                         // 2.1 nodi
                         neo4jDAO.mergeUser(owner);
-                        neo4jDAO.mergeProject(projectId, projectName);
+                        neo4jDAO.mergeProject(projectId, projectName, owner);
                         neo4jDAO.relateUserToProject(owner, projectId);
 
                         // 2.2 metodi e HAS_METHOD
@@ -755,21 +758,22 @@ public class ProjectService {
                 .orElse(new PathDTO(-1, List.of()));
     }
 
-    public List<it.unipi.githeritage.Model.Neo4j.Project> discoverProjects(String username) {
+    public List<NeoProjectDTO> discoverProjects(String username) {
         return neoProjectRepository.findRecommendedProjects(username);
     }
 
-    public List<Method> getInefficienciesByProjectId(String username, String projectId) {
-        if (!neoProjectRepository.isCollaborator(username, projectId)) {
+    public List<Method> getInefficienciesByProjectId(String username, Boolean isAdmin, String projectId) {
+        if (!isAdmin && !neoProjectRepository.isCollaborator(username, projectId)) {
             throw new RuntimeException("Forbidden: you are not collaborator on project " + projectId);
         }
         return neoMethodRepository.findTop20ByProjectId(projectId);
     }
 
     public List<Method> getInefficienciesByOwnerAndName(String username,
+                                                        Boolean isAdmin,
                                                         String owner,
                                                         String projectName) {
-        if (!neoProjectRepository.isCollaboratorByOwnerAndName(username, owner, projectName)) {
+        if (!isAdmin && !neoProjectRepository.isCollaboratorByOwnerAndName(username, owner, projectName)) {
             throw new RuntimeException("Forbidden: you are not collaborator on project " + owner + "/" + projectName);
         }
         return neoMethodRepository.findTop20ByOwnerAndProjectName(owner, projectName);
@@ -812,6 +816,11 @@ public class ProjectService {
         try {
             session.startTransaction();
 
+            // check if user exists
+            if (!mongoUserRepository.findByUsername(username).isPresent()) {
+                throw new RuntimeException("User not found");
+            }
+
             // get project
             if (project == null) {
                 project = mongoProjectRepository.findById(projectId)
@@ -819,8 +828,8 @@ public class ProjectService {
             }
 
             // check if user is administrator or admin
-            if (!project.getAdministrators().contains(authenticatedUsername) && !isAdmin) {
-                throw new RuntimeException("You canno edit this project");
+            if (!isAdmin && !project.getAdministrators().contains(authenticatedUsername)) {
+                throw new RuntimeException("You cannot edit this project");
             }
 
             // add user in administrators

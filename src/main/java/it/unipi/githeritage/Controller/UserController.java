@@ -32,11 +32,6 @@ public class UserController {
     @Autowired
     private ProjectService projectService;
 
-
-    //////////////////////////////////////
-    //         CRUD OPERATIONS          //
-    //////////////////////////////////////
-
     //////////////////////////////////////
     //              USER                //
     //////////////////////////////////////
@@ -108,7 +103,6 @@ public class UserController {
     //             PROJECT              //
     //////////////////////////////////////
 
-    // todo ulteriori testing
     // POST /api/user/project : create new project
     // query parameters: projectDTO
     @PostMapping("/project")
@@ -171,7 +165,7 @@ public class UserController {
         }
     }
 
-    // todo: quando modifico file e creo methods vanno aggiornati tutti i methods verso cui creo un arco e cosi' via...
+    // todo last method to edit
     // PUT /api/user/project/{project-id} : update project
     // body: CommitIdDTO
     @PutMapping("/project/{projectId}")
@@ -200,7 +194,7 @@ public class UserController {
         }
     }
 
-    // todo: quando modifico file e creo methods vanno aggiornati tutti i methods verso cui creo un arco e cosi' via...
+    // todo last method to edit
     // PUT /api/user/project/{project-id} : update project
     // body: CommitIdDTO
     @PutMapping("/project/{owner}/{projectName}")
@@ -230,7 +224,7 @@ public class UserController {
 
 
 
-    // PUT /api/user/collaborators/{projectId}/{username} : add username to project
+    // PUT /api/user/collaborators/{projectId}/{username} : add collaborator to project
     @PutMapping("/collaborators/{projectId}/{username}")
     public ResponseEntity<ResponseDTO<?>> updateCollaborator(
             @PathVariable String projectId,
@@ -258,7 +252,7 @@ public class UserController {
         }
     }
 
-    // DELETE /api/user/collaborators/{projectId}/{username} : remove username from project
+    // DELETE /api/user/collaborators/{projectId}/{username} : remove collaborator from project
     @DeleteMapping("/collaborators/{projectId}/{username}")
     public ResponseEntity<ResponseDTO<?>> deleteCollaborator(
             @PathVariable String projectId,
@@ -286,7 +280,7 @@ public class UserController {
         }
     }
 
-    // PUT /api/user/collaborators/{owner}/{projectName}/{username} : add username to project
+    // PUT /api/user/collaborators/{owner}/{projectName}/{username} : add collaborator to project
     @PutMapping("/collaborators/{owner}/{projectName}/{username}")
     public ResponseEntity<ResponseDTO<?>> updateCollaborator(
             @PathVariable String owner,
@@ -315,7 +309,7 @@ public class UserController {
         }
     }
 
-    // DELETE /api/user/collaborators/{owner/{projectName}/{username} : remove username from project
+    // DELETE /api/user/collaborators/{owner/{projectName}/{username} : remove collaborator from project
     @DeleteMapping("/collaborators/{owner}/{projectName}/{username}")
     public ResponseEntity<ResponseDTO<?>> deleteCollaborator(
             @PathVariable String owner,
@@ -344,8 +338,6 @@ public class UserController {
         }
     }
 
-    // todo ulteriori testing
-    // todo: quando modifico file e creo methods vanno aggiornati tutti i methods verso cui creo un arco e cosi' via...
     // DELETE /api/user/project?projectId=projectId : delete project
     // query parameters: projectId
     @DeleteMapping("/project")
@@ -372,7 +364,6 @@ public class UserController {
         }
     }
 
-    // todo testing
     // DELETE /api/user/project : delete project
     // query parameters: projectId
     @DeleteMapping("/project/{owner}/{projectName}")
@@ -400,6 +391,7 @@ public class UserController {
                     .body(new ResponseDTO<>(false, "Error updating project: " + e.getMessage(), null));
         }
     }
+
 
     // POST /api/user/follow/{username} : follow a user
     @PostMapping("/follow/{username}")
@@ -430,6 +422,7 @@ public class UserController {
         }
     }
 
+
     @DeleteMapping("/follow/{username}")
     public ResponseEntity<ResponseDTO<?>> unfollowUser(@PathVariable String username) {
         try {
@@ -453,6 +446,7 @@ public class UserController {
         }
     }
 
+
     // GET /api/distance/follow/{username} : compute follow distance between me and user {username}
     @GetMapping("/distance/follow/{username}")
     public ResponseEntity<ResponseDTO<PathDTO>> getFollowPath(@PathVariable String username) {
@@ -470,8 +464,8 @@ public class UserController {
 
             PathDTO pathDTO = userService.getFollowPath(authenticatedUsername, username);
             String msg = pathDTO.getDistance() < 0
-                    ? "No vulnerable dependencies found"
-                    : "Vulnerability path retrieved";
+                    ? "No path found"
+                    : "Path retrieved successfully";
             return ResponseEntity.ok(new ResponseDTO<>(true, msg, pathDTO));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -479,6 +473,7 @@ public class UserController {
         }
     }
 
+    // OK
     // GET /api/distance/follow/{username}/{username} : compute follow distance between two users
     @GetMapping("/distance/follow/{username1}/{username2}")
     public ResponseEntity<ResponseDTO<PathDTO>> getFollowPath(@PathVariable String username1,
@@ -497,14 +492,15 @@ public class UserController {
 
             PathDTO pathDTO = userService.getFollowPath(username1, username2);
             String msg = pathDTO.getDistance() < 0
-                    ? "No vulnerable dependencies found"
-                    : "Vulnerability path retrieved";
+                    ? "No path found"
+                    : "Path successfully retrieved";
             return ResponseEntity.ok(new ResponseDTO<>(true, msg, pathDTO));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ResponseDTO<>(false, "Error finding distance: " + e.getMessage(), null));
         }
     }
+
 
     // GET /api/distance/project/{username} : compute project distance between me and user {username}
     @GetMapping("/distance/project/{username}")
@@ -523,8 +519,8 @@ public class UserController {
 
             PathDTO pathDTO = userService.getProjectPath(authenticatedUsername, username);
             String msg = pathDTO.getDistance() < 0
-                    ? "No vulnerable dependencies found"
-                    : "Vulnerability path retrieved";
+                    ? "No path found"
+                    : "Path retrieved successfully";
             return ResponseEntity.ok(new ResponseDTO<>(true, msg, pathDTO));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -559,7 +555,7 @@ public class UserController {
         }
     }
 
-    // GET /api/project/vulnerability/{projectId} : discover vulnerabilities on project {id} from graph
+    // GET /api/user/project/vulnerability/{projectId} : discover vulnerabilities on project {id} from graph
     @GetMapping("/vulnerability/{projectId}")
     public ResponseEntity<ResponseDTO<PathDTO>> getVulnerabilityPath(
             @PathVariable String projectId) {
@@ -587,6 +583,7 @@ public class UserController {
         }
     }
 
+
     // GET /api/project/vulnerability/{owner}/{projectName} : discover vulnerabilities on project {id} from graph
     @GetMapping("/vulnerability/{owner}/{projectName}")
     public ResponseEntity<ResponseDTO<PathDTO>> getVulnerabilityPathByOwnerAndName(
@@ -612,18 +609,21 @@ public class UserController {
         }
     }
 
+
     // GET /api/user/discover/projects : discover new projects (based on projects of pepole I follow)
     @GetMapping("/suggestion/projects")
-    public ResponseEntity<ResponseDTO<List<it.unipi.githeritage.Model.Neo4j.Project>>> discoverProjects() {
+    public ResponseEntity<ResponseDTO<List<NeoProjectDTO>>> discoverProjects() {
         try {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            CustomUserDetails authenticatedUser = (CustomUserDetails) auth.getPrincipal();
             if (auth == null || !auth.isAuthenticated()) {
                 return ResponseEntity
                         .status(HttpStatus.UNAUTHORIZED)
                         .body(new ResponseDTO<>(false, "Unauthorized", null));
             }
-            String username = auth.getPrincipal().toString();
-            List<it.unipi.githeritage.Model.Neo4j.Project> projects = projectService.discoverProjects(username);
+            String username = authenticatedUser.getUsername();
+
+            List<NeoProjectDTO> projects = projectService.discoverProjects(username);
             return ResponseEntity.ok(new ResponseDTO<>(true, "", projects));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -631,19 +631,21 @@ public class UserController {
         }
     }
 
+
     // GET /api/user/discover/people : discover new people I can follow (friends of friends)
     // query parameters: username
     @GetMapping("/suggestion/people")
-    public ResponseEntity<ResponseDTO<List<it.unipi.githeritage.Model.Neo4j.User>>> discoverPeople() {
+    public ResponseEntity<ResponseDTO<List<NeoUserDTO>>> discoverPeople() {
         try {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            CustomUserDetails authenticatedUser = (CustomUserDetails) auth.getPrincipal();
             if (auth == null || !auth.isAuthenticated()) {
                 return ResponseEntity
                         .status(HttpStatus.UNAUTHORIZED)
                         .body(new ResponseDTO<>(false, "Unauthorized", null));
             }
-            String username = auth.getPrincipal().toString();
-            List<it.unipi.githeritage.Model.Neo4j.User> users = userService.discoverPeople(username);
+            String username = authenticatedUser.getUsername();
+            List<NeoUserDTO> users = userService.discoverPeople(username);
             return ResponseEntity.ok(new ResponseDTO<>(true, "", users));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -652,7 +654,6 @@ public class UserController {
     }
 
 
-    // SOLTANTO UN UTENTE CHE COLLABORA A QUESTO PROGETTO DEVE ESSERE IN GRADO DI VEDERE QUESTA COSA
     // GET /api/user/inefficiencies/{projectId} : discover inefficiencies in project {id} from graph
     // 20 metodi ordinati per hotness decrescente in un progetto
     @GetMapping("/inefficiencies/{projectId}")
@@ -660,13 +661,15 @@ public class UserController {
             @PathVariable String projectId) {
         try {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            CustomUserDetails authenticatedUser = (CustomUserDetails) auth.getPrincipal();
             if (auth == null || !auth.isAuthenticated()) {
                 return ResponseEntity
                         .status(HttpStatus.UNAUTHORIZED)
                         .body(new ResponseDTO<>(false, "Unauthorized", null));
             }
-            String username = auth.getName();
-            List<Method> methods = projectService.getInefficienciesByProjectId(username, projectId);
+            String username = authenticatedUser.getUsername();
+            Boolean isAdmin = authenticatedUser.getIsAdmin();
+            List<Method> methods = projectService.getInefficienciesByProjectId(username, isAdmin, projectId);
             return ResponseEntity.ok(new ResponseDTO<>(true, "Inefficiencies retrieved", methods));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
@@ -677,7 +680,6 @@ public class UserController {
         }
     }
 
-    // SOLTANTO UN UTENTE CHE COLLABORA A QUESTO PROGETTO DEVE ESSERE IN GRADO DI VEDERE QUESTA COSA
     // GET /api/user/inefficiencies/{owner}/{projectName} : discover inefficiencies in project {id} from graph
     // 20 metodi ordinati per hotness decrescente in un progetto
     @GetMapping("/inefficiencies/{owner}/{projectName}")
@@ -686,13 +688,15 @@ public class UserController {
             @PathVariable String projectName) {
         try {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            CustomUserDetails authenticatedUser = (CustomUserDetails) auth.getPrincipal();
             if (auth == null || !auth.isAuthenticated()) {
                 return ResponseEntity
                         .status(HttpStatus.UNAUTHORIZED)
                         .body(new ResponseDTO<>(false, "Unauthorized", null));
             }
-            String username = auth.getName();
-            List<Method> methods = projectService.getInefficienciesByOwnerAndName(username, owner, projectName);
+            String username = authenticatedUser.getUsername();
+            Boolean isAdmin = authenticatedUser.getIsAdmin();
+            List<Method> methods = projectService.getInefficienciesByOwnerAndName(username, isAdmin, owner, projectName);
             return ResponseEntity.ok(new ResponseDTO<>(true, "Inefficiencies retrieved", methods));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)

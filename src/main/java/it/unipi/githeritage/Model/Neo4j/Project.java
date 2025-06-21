@@ -1,5 +1,6 @@
 package it.unipi.githeritage.Model.Neo4j;
 
+import org.neo4j.driver.summary.ResultSummary;
 import org.springframework.data.neo4j.core.schema.Id;
 import org.springframework.data.neo4j.core.schema.Node;
 import org.springframework.data.neo4j.core.schema.Relationship;
@@ -14,7 +15,7 @@ public class Project {
     @Id
     private String id;
     private String owner;
-    private String projectName;
+    private String name;
 
     @Relationship(type="COLLABORATES_ON", direction=Relationship.Direction.INCOMING)
     private Set<User> collaborators;

@@ -1,5 +1,6 @@
 package it.unipi.githeritage.Repository.Neo4j;
 
+import it.unipi.githeritage.DTO.NeoUserDTO;
 import it.unipi.githeritage.Model.Neo4j.Project;
 import it.unipi.githeritage.Model.Neo4j.User;
 import org.springframework.data.neo4j.repository.Neo4jRepository;
@@ -34,6 +35,6 @@ public interface NeoUserRepository extends Neo4jRepository<User, String> {
        RETURN DISTINCT ff
        LIMIT 20
     """)
-    List<User> findSuggestedPeople(String username);
+    List<NeoUserDTO> findSuggestedPeople(String username);
 }
 
