@@ -170,7 +170,7 @@ public class UserController {
     // body: CommitIdDTO
     @PutMapping("/project/{projectId}")
     public ResponseEntity<ResponseDTO<?>> updateProject(
-            @PathVariable String projectId, @RequestBody CommitIdDTO commitIdDTO
+            @PathVariable String projectId, @RequestBody CommitDTO commitDTO
     ) {
         try {
             // Get the authenticated user from security context
@@ -178,7 +178,6 @@ public class UserController {
             CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
 
             String authenticatedUsername = authenticatedUser.getUsername();
-            Boolean isAdmin = authenticatedUser.getIsAdmin();
 
             if (authenticatedUsername == null) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
@@ -186,7 +185,7 @@ public class UserController {
             }
 
             // Call the service to update the project
-            Project updatedProject = projectService.updateProject(projectId, commitIdDTO, authenticatedUsername, isAdmin);
+            ProjectDTO updatedProject = projectService.updateProject(projectId, commitDTO, authenticatedUsername);
             return ResponseEntity.ok(new ResponseDTO<>(true, "Project updated successfully", updatedProject));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -199,7 +198,7 @@ public class UserController {
     // body: CommitIdDTO
     @PutMapping("/project/{owner}/{projectName}")
     public ResponseEntity<ResponseDTO<?>> updateProject(
-            @PathVariable String owner, @PathVariable String projectName, @RequestBody CommitOwnerDTO commitOwnerDTO
+            @PathVariable String owner, @PathVariable String projectName, @RequestBody CommitDTO commitDTO
     ) {
         try {
             // Get the authenticated user from security context
@@ -214,7 +213,7 @@ public class UserController {
             }
 
             // Call the service to update the project
-            ProjectDTO updatedProject = projectService.updateProject(commitOwnerDTO, authenticatedUsername);
+            ProjectDTO updatedProject = projectService.updateProject(owner, projectName, commitDTO, authenticatedUsername);
             return ResponseEntity.ok(new ResponseDTO<>(true, "Project updated successfully", updatedProject));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

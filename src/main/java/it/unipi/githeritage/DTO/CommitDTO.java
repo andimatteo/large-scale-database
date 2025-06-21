@@ -11,8 +11,6 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class CommitOwnerDTO {
-    private String owner;
-    private String projectName;
-    List<FileWrapperDTO> files;
+public class CommitDTO extends BaseDTO{
+    private List<FileWrapperDTO> files;
 }
