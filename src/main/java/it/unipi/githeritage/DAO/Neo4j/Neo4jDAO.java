@@ -10,7 +10,9 @@ import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.data.neo4j.core.Neo4jTemplate;
 import org.springframework.stereotype.Repository;
 
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Repository
@@ -233,10 +235,10 @@ public class Neo4jDAO {
         }
     }
 
-    public void mergeProject(String projectId, String name) {
+    public void mergeProject(String projectId, String projectName, String owner) {
         client.query("MERGE (p:Project {id: $id, name: $name})")
                 .bind(projectId).to("id")
-                .bind(name).to("name")
+                .bind(projectName).to("name")
                 .bind(owner).to("owner")
                 .run();
     }
@@ -369,7 +371,7 @@ public class Neo4jDAO {
     }
 
     public void addProject(ProjectDTO projectDTO) {
-        mergeProject(projectDTO.getId(), projectDTO.getName());
+        mergeProject(projectDTO.getId(), projectDTO.getName(), projectDTO.getOwner());
         if (projectDTO.getOwner() != null) {
             mergeUser(projectDTO.getOwner());
             relateUserToProject(projectDTO.getOwner(), projectDTO.getId());
@@ -627,28 +629,5 @@ public class Neo4jDAO {
                 .bind(username).to("username")
                 .bind(projectId).to("projectId")
                 .run();
-    }
-    public int countFollower(String username) {
-        String cypher = """
-            MATCH (:User)-[r:FOLLOWS]->(u:User {username: $username})
-            RETURN COUNT(r) AS followerCount
-            """;
-        return client.query(cypher)
-                .bind(username).to("username")
-                .fetch().one()
-                .map(row -> ((Number)row.get("followerCount")).intValue())
-                .orElse(0);
-    }
-
-    public int countFollowing(String username) {
-        String cypher = """
-            MATCH (u:User {username: $username})-[r:FOLLOWS]->(:User)
-            RETURN COUNT(r) AS followingCount
-            """;
-        return client.query(cypher)
-                .bind(username).to("username")
-                .fetch().one()
-                .map(row -> ((Number)row.get("followingCount")).intValue())
-                .orElse(0);
     }
 }
