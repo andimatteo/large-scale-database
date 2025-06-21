@@ -48,10 +48,10 @@ public class AdminController {
             }
 
             Long code = userService.superUser(username);
-            return ResponseEntity.ok(new ResponseDTO<>(true, "User deleted successfully", code));
+            return ResponseEntity.ok(new ResponseDTO<>(true, "User made admin successfully", code));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ResponseDTO<>(false, "Error deleting user: " + e.getMessage(), null));
+                    .body(new ResponseDTO<>(false, "Error giving admin to user: " + e.getMessage(), null));
         }
     }
 

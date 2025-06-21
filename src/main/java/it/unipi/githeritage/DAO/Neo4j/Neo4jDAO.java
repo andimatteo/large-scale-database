@@ -576,7 +576,7 @@ public class Neo4jDAO {
                              THEN 'USER: '    + coalesce(n[i].username,'<unknown>')
                         ELSE 'PROJECT: ' + coalesce(n[i].owner,'<no-owner>')
                                            + '/' +
-                                           coalesce(n[i].name , coalesce(n[i].id,'<no-name>'))
+                                           coalesce(n[i].projectName , coalesce(n[i].id,'<no-name>'))
                     END
                 ] AS nodes
         """;

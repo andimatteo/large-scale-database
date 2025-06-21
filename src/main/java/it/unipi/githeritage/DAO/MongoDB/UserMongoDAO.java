@@ -1,8 +1,10 @@
 package it.unipi.githeritage.DAO.MongoDB;
 
 import com.mongodb.client.MongoClient;
+import it.unipi.githeritage.DTO.UserMetadataDTO;
 import org.bson.conversions.Bson;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -150,5 +152,23 @@ public class UserMongoDAO {
                 .aggregate(pipeline)
                 .into(new ArrayList<>());
     }
-    
+
+    // get 100 users, ordinati per username asc
+    public List<UserMetadataDTO> getAllUserMetadata() {
+        Query query = new Query()
+                .with(Sort.by(Sort.Direction.ASC, "username"))
+                .limit(100);
+        return mongoTemplate.find(query, UserMetadataDTO.class, "Users");
+    }
+
+    // get 50 users per pagina, ordinati per username asc
+    public List<UserMetadataDTO> getAllUsersMetadataPaginated(int pageIndex) {
+        int pageSize = 50;
+        Query query = new Query()
+                .with(Sort.by(Sort.Direction.ASC, "username"))
+                .skip((long) pageIndex * pageSize)
+                .limit(pageSize);
+        return mongoTemplate.find(query, UserMetadataDTO.class, "Users");
+    }
+
 }

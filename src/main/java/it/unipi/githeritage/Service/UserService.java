@@ -203,15 +203,12 @@ public class UserService {
 
     // get 200 users
     public List<UserMetadataDTO> getAllUserMetadata() {
-        return mongoUserRepository.findTop100ByOrderByUsernameAsc()
-                .orElse(null);
+        return userMongoDAO.getAllUserMetadata();
     }
 
     // get 200 users
     public List<UserMetadataDTO> getAllUsersMetadataPaginated(int pageIndex) {
-        return mongoUserRepository
-                .findAllOrderByUsername(PageRequest.of(pageIndex, 50))
-                .getContent();  // prendi solo la lista interna
+        return userMongoDAO.getAllUsersMetadataPaginated(pageIndex);
     }
 
 
