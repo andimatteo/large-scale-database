@@ -288,9 +288,28 @@ public class Neo4jDAO {
                 .run();
     }
 
+    public void mergeMethodWithMetrics(String owner, String fqn, String methodName, 
+                                     int assignmentCount, int arithmeticCount, int loopCount) {
+        client.query("""
+            MERGE (m:Method {owner: $owner, fullyQualifiedName: $fqn})
+            ON CREATE SET m.methodName = $methodName, m.assignmentCount = $assignmentCount, 
+                         m.arithmeticCount = $arithmeticCount, m.loopCount = $loopCount
+            ON MATCH SET m.methodName = $methodName, m.assignmentCount = $assignmentCount,
+                        m.arithmeticCount = $arithmeticCount, m.loopCount = $loopCount
+            """)
+                .bind(owner).to("owner")
+                .bind(fqn).to("fqn")
+                .bind(methodName).to("methodName")
+                .bind(assignmentCount).to("assignmentCount")
+                .bind(arithmeticCount).to("arithmeticCount")
+                .bind(loopCount).to("loopCount")
+                .run();
+    }
+
     public void relateProjectToMethod(String projectId, String owner, String fqn) {
         client.query("""
-            MATCH (p:Project {id: $projectId}), (m:Method {owner: $owner, fullyQualifiedName: $fqn})
+            MATCH (p:Project {id: $projectId})
+            MATCH (m:Method {owner: $owner, fullyQualifiedName: $fqn})
             MERGE (p)-[:HAS_METHOD]->(m)
             """)
                 .bind(projectId).to("projectId")
@@ -312,8 +331,8 @@ public class Neo4jDAO {
 
     public void relateMethodsCall(String owner, String callerFqn, String calleeFqn) {
         client.query("""
-            MATCH (m1:Method {owner: $owner, fullyQualifiedName: $caller}),
-                  (m2:Method {owner: $owner, fullyQualifiedName: $callee})
+            MATCH (m1:Method {owner: $owner, fullyQualifiedName: $caller})
+            MATCH (m2:Method {owner: $owner, fullyQualifiedName: $callee})
             MERGE (m1)-[:CALLS]->(m2)
             """)
                 .bind(owner).to("owner")
@@ -475,7 +494,8 @@ public class Neo4jDAO {
         try {
             client.query("""
                 UNWIND $relationships AS rel
-                MATCH (follower:User {username: rel.follower}), (followed:User {username: rel.followed})
+                MATCH (follower:User {username: rel.follower})
+                MATCH (followed:User {username: rel.followed})
                 MERGE (follower)-[:FOLLOWS]->(followed)
                 """)
                     .bind(followRelationships).to("relationships")
@@ -492,7 +512,8 @@ public class Neo4jDAO {
      */
     public int followDistance(String userA, String userB) {
         String cypher = """
-            MATCH (a:User {username: $userA}), (b:User {username: $userB})
+            MATCH (a:User {username: $userA})
+            MATCH (b:User {username: $userB})
             OPTIONAL MATCH p = shortestPath((a)-[:FOLLOWS*]-(b))
             RETURN CASE WHEN p IS NULL THEN -1 ELSE length(p) END AS dist
             """;

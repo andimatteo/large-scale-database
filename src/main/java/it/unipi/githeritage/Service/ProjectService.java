@@ -448,7 +448,22 @@ public class ProjectService {
                                 .collect(Collectors.toList())) {
                             String fqn        = entry.getKey();
                             String simpleName = entry.getValue();
-                            neo4jDAO.mergeMethod(owner, fqn, simpleName);
+                            
+                            // Create new method declaration for analysis
+                            Optional<MethodDeclaration> mdOpt = newCu.findAll(MethodDeclaration.class).stream()
+                                .filter(md -> md.resolve().getQualifiedSignature().equals(fqn))
+                                .findFirst();
+                            
+                            if (mdOpt.isPresent()) {
+                                MethodMetrics metrics = analyzeMethodComplexity(mdOpt.get());
+                                neo4jDAO.mergeMethodWithMetrics(owner, fqn, simpleName, 
+                                                              metrics.assignmentCount, 
+                                                              metrics.arithmeticCount, 
+                                                              metrics.loopCount);
+                            } else {
+                                // Fallback to basic method creation
+                                neo4jDAO.mergeMethod(owner, fqn, simpleName);
+                            }
                             neo4jDAO.relateProjectToMethod(projectId, owner, fqn);
                         }
 
@@ -906,5 +921,69 @@ public class ProjectService {
         }
     }
 
-
+       
+    /**
+     * Analyze method complexity by counting assignments, arithmetic operations, and loops
+     */
+    private MethodMetrics analyzeMethodComplexity(MethodDeclaration method) {
+        int assignmentCount = 0;
+        int arithmeticCount = 0;
+        int loopCount = 0;
+        
+        // Count assignments
+        assignmentCount += method.findAll(com.github.javaparser.ast.expr.AssignExpr.class).size();
+        assignmentCount += method.findAll(com.github.javaparser.ast.expr.VariableDeclarationExpr.class).size();
+        
+        // Count arithmetic operations
+        arithmeticCount += method.findAll(com.github.javaparser.ast.expr.BinaryExpr.class)
+            .stream()
+            .mapToInt(expr -> {
+                switch (expr.getOperator()) {
+                    case PLUS, MINUS, MULTIPLY, DIVIDE, REMAINDER -> {
+                        return 1;
+                    }
+                    default -> {
+                        return 0;
+                    }
+                }
+            })
+            .sum();
+        arithmeticCount += method.findAll(com.github.javaparser.ast.expr.UnaryExpr.class)
+            .stream()
+            .mapToInt(expr -> {
+                switch (expr.getOperator()) {
+                    case PLUS, MINUS, PREFIX_INCREMENT, PREFIX_DECREMENT, 
+                         POSTFIX_INCREMENT, POSTFIX_DECREMENT -> {
+                        return 1;
+                    }
+                    default -> {
+                        return 0;
+                    }
+                }
+            })
+            .sum();
+        
+        // Count loops
+        loopCount += method.findAll(com.github.javaparser.ast.stmt.ForStmt.class).size();
+        loopCount += method.findAll(com.github.javaparser.ast.stmt.ForEachStmt.class).size();
+        loopCount += method.findAll(com.github.javaparser.ast.stmt.WhileStmt.class).size();
+        loopCount += method.findAll(com.github.javaparser.ast.stmt.DoStmt.class).size();
+        
+        return new MethodMetrics(assignmentCount, arithmeticCount, loopCount);
+    }
+    
+    /**
+     * Simple data class to hold method complexity metrics
+     */
+    private static class MethodMetrics {
+        final int assignmentCount;
+        final int arithmeticCount;
+        final int loopCount;
+        
+        MethodMetrics(int assignmentCount, int arithmeticCount, int loopCount) {
+            this.assignmentCount = assignmentCount;
+            this.arithmeticCount = arithmeticCount;
+            this.loopCount = loopCount;
+        }
+    }
 }
