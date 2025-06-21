@@ -986,4 +986,187 @@ public class Neo4jDAO {
         
         return totalHotness;
     }
+
+    /**
+     * Calculate and update hotness for a single method using depth-first traversal.
+     * This is more efficient when only updating specific methods instead of all methods.
+     * Forces recalculation even if the method was previously calculated.
+     */
+    public void calculateAndUpdateSingleMethodHotness(String owner, String fqn) {
+        Set<String> visitedMethods = new HashSet<>();
+        Set<String> currentPath = new HashSet<>();
+        
+        // First reset the hotness to base complexity for this method
+        String resetQuery = """
+            MATCH (m:Method {owner: $owner, fullyQualifiedName: $fqn})
+            SET m.hotness = 2 * COALESCE(m.assignmentCount, 0) + 
+                           COALESCE(m.arithmeticCount, 0) + 
+                           100 * COALESCE(m.loopCount, 0)
+            """;
+        client.query(resetQuery)
+                .bind(owner).to("owner")
+                .bind(fqn).to("fqn")
+                .run();
+        
+        // Now calculate the full hotness recursively with forced recalculation
+        calculateMethodHotnessRecursiveForced(owner, fqn, visitedMethods, currentPath);
+        
+        // Also need to recalculate any methods that call this method (propagate changes upward)
+        recalculateCallingMethods(owner, fqn, new HashSet<>());
+    }
+    
+    /**
+     * Recursively calculate hotness for a method with forced recalculation (ignores visited cache)
+     */
+    private float calculateMethodHotnessRecursiveForced(String owner, String fqn, 
+                                                       Set<String> globalVisited, 
+                                                       Set<String> currentPath) {
+        String methodKey = owner + ":" + fqn;
+        
+        // Check for cycles in current path
+        if (currentPath.contains(methodKey)) {
+            return 0.0f; // Avoid infinite recursion
+        }
+        
+        // Add to current path
+        currentPath.add(methodKey);
+        
+        // Get base complexity
+        String getBaseComplexityQuery = """
+            MATCH (m:Method {owner: $owner, fullyQualifiedName: $fqn})
+            RETURN COALESCE(m.assignmentCount, 0) AS assignments,
+                   COALESCE(m.arithmeticCount, 0) AS arithmetic,
+                   COALESCE(m.loopCount, 0) AS loops
+            """;
+        
+        float baseComplexity = client.query(getBaseComplexityQuery)
+                .bind(owner).to("owner")
+                .bind(fqn).to("fqn")
+                .fetch().one()
+                .map(row -> {
+                    int assignments = ((Number) row.get("assignments")).intValue();
+                    int arithmetic = ((Number) row.get("arithmetic")).intValue();
+                    int loops = ((Number) row.get("loops")).intValue();
+                    return (float) (1 + 2 * assignments + arithmetic + 100 * loops);
+                })
+                .orElse(0.0f);
+        
+        // Get called methods
+        String getCalledMethodsQuery = """
+            MATCH (m:Method {owner: $owner, fullyQualifiedName: $fqn})-[:CALLS]->(called:Method)
+            RETURN called.owner AS calledOwner, called.fullyQualifiedName AS calledFqn
+            """;
+        
+        Collection<Map<String, Object>> calledMethodsCollection = client.query(getCalledMethodsQuery)
+                .bind(owner).to("owner")
+                .bind(fqn).to("fqn")
+                .fetch().all();
+        List<Map<String, Object>> calledMethods = new ArrayList<>(calledMethodsCollection);
+        
+        // Calculate sum of called methods' hotness
+        float calledHotnessSum = 0.0f;
+        for (Map<String, Object> calledMethod : calledMethods) {
+            String calledOwner = (String) calledMethod.get("calledOwner");
+            String calledFqn = (String) calledMethod.get("calledFqn");
+            
+            float calledHotness;
+            String calledMethodKey = calledOwner + ":" + calledFqn;
+            
+            // For called methods, use cached value if available to avoid excessive recalculation
+            if (globalVisited.contains(calledMethodKey)) {
+                String getHotnessQuery = """
+                    MATCH (m:Method {owner: $owner, fullyQualifiedName: $fqn})
+                    RETURN COALESCE(m.hotness, 0) AS hotness
+                    """;
+                calledHotness = client.query(getHotnessQuery)
+                        .bind(calledOwner).to("owner")
+                        .bind(calledFqn).to("fqn")
+                        .fetch().one()
+                        .map(row -> ((Number) row.get("hotness")).floatValue())
+                        .orElse(0.0f);
+            } else {
+                calledHotness = calculateMethodHotnessRecursive(calledOwner, calledFqn, 
+                                                              globalVisited, currentPath);
+            }
+            
+            // If this is a recursive call (method calls itself), square the hotness
+            if (calledMethodKey.equals(methodKey)) {
+                calledHotness = baseComplexity * baseComplexity;
+            }
+            
+            calledHotnessSum += calledHotness + 10; // Add 10 for each called method
+        }
+        
+        // Calculate total hotness
+        float totalHotness = baseComplexity + calledHotnessSum;
+        
+        // Update method hotness in database
+        String updateHotnessQuery = """
+            MATCH (m:Method {owner: $owner, fullyQualifiedName: $fqn})
+            SET m.hotness = $hotness
+            """;
+        client.query(updateHotnessQuery)
+                .bind(owner).to("owner")
+                .bind(fqn).to("fqn")
+                .bind(totalHotness).to("hotness")
+                .run();
+        
+        // Remove from current path and add to global visited
+        currentPath.remove(methodKey);
+        globalVisited.add(methodKey);
+        
+        return totalHotness;
+    }
+    
+    /**
+     * Recalculate hotness for methods that call the given method
+     */
+    private void recalculateCallingMethods(String targetOwner, String targetFqn, Set<String> alreadyRecalculated) {
+        String methodKey = targetOwner + ":" + targetFqn;
+        if (alreadyRecalculated.contains(methodKey)) {
+            return; // Avoid infinite recursion
+        }
+        alreadyRecalculated.add(methodKey);
+        
+        // Find methods that call this method
+        String getCallingMethodsQuery = """
+            MATCH (caller:Method)-[:CALLS]->(target:Method {owner: $targetOwner, fullyQualifiedName: $targetFqn})
+            RETURN caller.owner AS callerOwner, caller.fullyQualifiedName AS callerFqn
+            """;
+        
+        Collection<Map<String, Object>> callingMethodsCollection = client.query(getCallingMethodsQuery)
+                .bind(targetOwner).to("targetOwner")
+                .bind(targetFqn).to("targetFqn")
+                .fetch().all();
+        
+        List<Map<String, Object>> callingMethods = new ArrayList<>(callingMethodsCollection);
+        
+        // Recalculate each calling method
+        for (Map<String, Object> callingMethod : callingMethods) {
+            String callerOwner = (String) callingMethod.get("callerOwner");
+            String callerFqn = (String) callingMethod.get("callerFqn");
+            
+            // Reset and recalculate this calling method
+            Set<String> visitedMethods = new HashSet<>();
+            Set<String> currentPath = new HashSet<>();
+            
+            // Reset its hotness first
+            String resetQuery = """
+                MATCH (m:Method {owner: $owner, fullyQualifiedName: $fqn})
+                SET m.hotness = COALESCE(m.assignmentCount, 0) + 
+                               COALESCE(m.arithmeticCount, 0) + 
+                               COALESCE(m.loopCount, 0)
+                """;
+            client.query(resetQuery)
+                    .bind(callerOwner).to("owner")
+                    .bind(callerFqn).to("fqn")
+                    .run();
+            
+            // Recalculate
+            calculateMethodHotnessRecursiveForced(callerOwner, callerFqn, visitedMethods, currentPath);
+            
+            // Recursively update methods that call this one
+            recalculateCallingMethods(callerOwner, callerFqn, alreadyRecalculated);
+        }
+    }
 }

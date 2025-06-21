@@ -426,6 +426,12 @@ public class ProjectService {
                                     neo4jDAO.relateMethodsCall(owner, callerFqn, calleeFqn);
                                 }
                             }
+                            
+                            // Update hotness for all methods in this file
+                            for (MethodDeclaration md : cu.findAll(MethodDeclaration.class)) {
+                                String fqn = md.resolve().getQualifiedSignature();
+                                neo4jDAO.calculateAndUpdateSingleMethodHotness(owner, fqn);
+                            }
                         } else if (path.equals("pom.xml")) {
                             // Handle pom.xml for new project package name and dependencies
                             String content = file.getContent();
@@ -525,6 +531,9 @@ public class ProjectService {
                                     neo4jDAO.mergeMethod(owner, fqn, simpleName);
                                 }
                                 neo4jDAO.relateProjectToMethod(projectId, owner, fqn);
+                                
+                                // Update hotness for this newly added method
+                                neo4jDAO.calculateAndUpdateSingleMethodHotness(owner, fqn);
                             }
 
                             // 8) aggiorno tutte le CALLS per i metodi rimasti (intersezione)
@@ -541,6 +550,9 @@ public class ProjectService {
                                         .forEach(calleeFqn ->
                                                 neo4jDAO.relateMethodsCall(owner, callerFqn, calleeFqn)
                                         );
+                                
+                                // Update hotness for this method since its calls may have changed
+                                neo4jDAO.calculateAndUpdateSingleMethodHotness(owner, callerFqn);
                             }
                         } else if (path.equals("pom.xml")) {
                             // Handle pom.xml dependencies update
