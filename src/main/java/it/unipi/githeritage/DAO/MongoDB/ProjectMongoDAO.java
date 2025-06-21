@@ -8,6 +8,7 @@ import it.unipi.githeritage.Model.MongoDB.Project;
 import it.unipi.githeritage.Model.MongoDB.User;
 import it.unipi.githeritage.Repository.MongoDB.MongoProjectRepository;
 import it.unipi.githeritage.Repository.MongoDB.MongoUserRepository;
+import org.bson.types.ObjectId;
 import org.springframework.data.mongodb.core.aggregation.ArrayOperators.Filter;
 
 import org.bson.Document;
@@ -42,6 +43,7 @@ public class ProjectMongoDAO {
                 throw new RuntimeException("User not found");
             }
 
+            ZoneId TZ = ZoneId.of("Europe/Rome");
             Instant now = Instant.now();
             Instant start = now.minus(364, ChronoUnit.DAYS).truncatedTo(ChronoUnit.DAYS);
 
@@ -52,25 +54,38 @@ public class ProjectMongoDAO {
                     .build();
 
             Aggregation aggregation = Aggregation.newAggregation(
-                    User.class,
+                    // 1) utente
                     Aggregation.match(Criteria.where("_id").is(username)),
-                    Aggregation.lookup("Commits", "commitIds", "_id", "commits"),
-                    Aggregation.unwind("commits"),
+
+                    // 2) commitIds -> commit
+                    Aggregation.unwind("commitIds"),
+                    Aggregation.lookup("Commits", "commitIds", "_id", "commit"),
+                    Aggregation.unwind("commit"),
+                    // 3) filtro temporale
                     Aggregation.match(
-                            Criteria.where("commits.timestamp").gte(start).lte(now)
+                            Criteria.where("commit.timestamp")
+                                    .gte(Date.from(start))
+                                    .lte(Date.from(now))
                     ),
+                    // 4) yyyy-MM-dd
                     Aggregation.project()
-                            .andExpression("{$dateToString: {format: '%Y-%m-%d', date: '$commits.timestamp'}}")
-                            .as("day"),
+                            .and(
+                                    DateOperators.DateToString
+                                            .dateOf("commit.timestamp")
+                                            .toString("%Y-%m-%d")
+                            ).as("day"),
+                    // 5) conta per giorno
                     Aggregation.group("day").count().as("count"),
+
                     Aggregation.project("count").and("day").previousOperation(),
                     Aggregation.sort(Sort.by(Sort.Direction.ASC, "day"))
-            )
-                    .withOptions(options);
+            ).withOptions(options);
 
             // obtained results but days may be missing
             AggregationResults<DailyCommitCountDTO> results =
-                    mongoTemplate.aggregate(aggregation, User.class, DailyCommitCountDTO.class);
+                    mongoTemplate.aggregate(aggregation, "Users", DailyCommitCountDTO.class);
+
+            System.out.println(results.getMappedResults());
 
             // fill all days
             Map<LocalDate, Integer> counts = results.getMappedResults().stream()

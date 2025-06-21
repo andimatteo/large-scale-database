@@ -8,6 +8,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import it.unipi.githeritage.DTO.UserDTO;
 import lombok.Data;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.Instant;
 import java.util.List;
@@ -18,7 +19,7 @@ import java.util.List;
 public class User {
 
     @Id
-    @JsonProperty("_id")
+    @Field("_id")
     private String username;
 
     private String password;
