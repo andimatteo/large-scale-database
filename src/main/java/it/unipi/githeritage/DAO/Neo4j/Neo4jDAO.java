@@ -651,4 +651,28 @@ public class Neo4jDAO {
                 .bind(projectId).to("projectId")
                 .run();
     }
+
+    public int countFollower(String username) {
+        String cypher = """
+            MATCH (:User)-[r:FOLLOWS]->(u:User {username: $username})
+            RETURN COUNT(r) AS followerCount
+            """;
+        return client.query(cypher)
+                .bind(username).to("username")
+                .fetch().one()
+                .map(row -> ((Number)row.get("followerCount")).intValue())
+                .orElse(0);
+    }
+
+    public int countFollowing(String username) {
+        String cypher = """
+            MATCH (u:User {username: $username})-[r:FOLLOWS]->(:User)
+            RETURN COUNT(r) AS followingCount
+            """;
+        return client.query(cypher)
+                .bind(username).to("username")
+                .fetch().one()
+                .map(row -> ((Number)row.get("followingCount")).intValue())
+                .orElse(0);
+    }
 }
