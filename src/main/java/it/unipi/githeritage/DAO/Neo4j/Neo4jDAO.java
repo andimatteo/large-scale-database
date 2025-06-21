@@ -403,6 +403,114 @@ public class Neo4jDAO {
                 .run();
     }
 
+    /**
+     * Get the package name of a project by its ID
+     */
+    public String getProjectPackageNameById(String projectId) {
+        String cypher = """
+            MATCH (p:Project {id: $projectId})
+            RETURN p.packageName AS packageName
+            """;
+        return client.query(cypher)
+                .bind(projectId).to("projectId")
+                .fetch().one()
+                .map(row -> (String) row.get("packageName"))
+                .orElse(null);
+    }
+
+    /**
+     * Update dependencies for a project by removing old dependencies and adding new ones
+     * Also handles package name changes by migrating project nodes
+     */
+    public void updateDependencies(String previousProjectid, String newPackageName, 
+                                                    List<String> newDependencies, String projectId, 
+                                                    String owner, String projectName) {
+        // Remove old outgoing dependencies
+        client.query("""
+            MATCH (p:Project {id: $previousProjectId})-[r:DEPENDS_ON]->()
+            DELETE r
+            """)
+                .bind(previousProjectid).to("previousProjectId")
+                .run();
+        
+        // If package name changed, migrate to new project node
+        String currentPackageName = getProjectPackageNameById(previousProjectid);
+        if ((currentPackageName == null && newPackageName != null) || 
+            (currentPackageName != null && !currentPackageName.equals(newPackageName))) {
+            // Create or find the new project node and migrate all relationships
+            client.query("""
+                MATCH (oldProject:Project {id: $previousProjectId})
+                MERGE (newProject:Project {id: $projectId})
+                SET newProject.owner = $owner,
+                    newProject.projectName = $projectName,
+                    newProject.packageName = $newPackageName
+                
+                // Migrate incoming DEPENDS_ON relationships
+                WITH oldProject, newProject
+                MATCH (dependent:Project)-[oldDep:DEPENDS_ON]->(oldProject)
+                MERGE (dependent)-[:DEPENDS_ON]->(newProject)
+                DELETE oldDep
+                
+                // Migrate COLLABORATES_ON relationships
+                WITH oldProject, newProject
+                MATCH (user:User)-[oldCollab:COLLABORATES_ON]->(oldProject)
+                MERGE (user)-[:COLLABORATES_ON]->(newProject)
+                DELETE oldCollab
+                
+                // Migrate HAS_METHOD relationships
+                WITH oldProject, newProject
+                MATCH (oldProject)-[oldMethod:HAS_METHOD]->(method:Method)
+                MERGE (newProject)-[:HAS_METHOD]->(method)
+                DELETE oldMethod
+                
+                // Delete old project node
+                WITH oldProject
+                DETACH DELETE oldProject
+                """)
+                .bind(previousProjectid).to("previousProjectId")
+                .bind(projectId).to("projectId")
+                .bind(owner).to("owner")
+                .bind(projectName).to("projectName")
+                .bind(newPackageName).to("newPackageName")
+                .run();
+        } else {
+            // Just update the existing project if package name hasn't changed
+            client.query("""
+                MATCH (p:Project {id: $projectId})
+                SET p.owner = $owner,
+                    p.projectName = $projectName,
+                    p.packageName = $newPackageName
+                """)
+                .bind(projectId).to("projectId")
+                .bind(owner).to("owner")
+                .bind(projectName).to("projectName")
+                .bind(newPackageName).to("newPackageName")
+                .run();
+        }
+
+        // if the old project has no relationships, delete it, otherwise just delete owner, id and projectName
+        client.query("""
+            MATCH (p:Project {id: $previousProjectId})
+            WHERE NOT (p)<-[:COLLABORATES_ON]-() AND NOT (p)<-[:DEPENDS_ON]-()
+            DETACH DELETE p
+            """)
+                .bind(previousProjectid).to("previousProjectId")
+                .run();
+        
+        // Add new dependencies
+        if (newDependencies != null && !newDependencies.isEmpty()) {
+            client.query("""
+                UNWIND $dependencies AS depPackageName
+                MATCH (p:Project {id: $projectId})
+                MERGE (dep:Project {packageName: depPackageName})
+                MERGE (p)-[:DEPENDS_ON]->(dep)
+                """)
+                .bind(projectId).to("projectId")
+                .bind(newDependencies).to("dependencies")
+                .run();
+        }
+    }
+
     public void addProject(ProjectDTO projectDTO) {
         mergeProject(projectDTO.getId(), projectDTO.getName(), projectDTO.getOwner());
         if (projectDTO.getOwner() != null) {

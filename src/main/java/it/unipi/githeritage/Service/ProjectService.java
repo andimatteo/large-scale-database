@@ -22,7 +22,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.PathVariable;
 
 import com.github.difflib.DiffUtils;
 import com.github.difflib.patch.AbstractDelta;
@@ -39,7 +38,6 @@ import com.github.javaparser.ParserConfiguration;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
-import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 
@@ -393,6 +391,9 @@ public class ProjectService {
                         filesModified++;
                         linesAdded += file.getContent().split("\r?\n").length;
 
+                        // set file id to null to let MongoDB generate it
+                        file.setId(null);
+
                         // Handle different file types
                         if (path.endsWith(".java")) {
                             // 2) aggiorna Neo4j tramite DAO per file Java
@@ -426,12 +427,14 @@ public class ProjectService {
                                 }
                             }
                         } else if (path.equals("pom.xml")) {
-                            // Handle pom.xml dependencies
+                            // Handle pom.xml for new project package name and dependencies
                             String content = file.getContent();
+                            String newPackageName = extractPackageFromPomXml(content);
                             List<String> dependencies = extractDependenciesFromPomXml(content);
-                            for (String dependency : dependencies) {
-                                neo4jDAO.relateProjectDependencyByPackageName(projectId, dependency);
-                            }
+                            
+                            // Update project with package name and dependencies
+                            neo4jDAO.updateDependencies(projectId, newPackageName, dependencies, 
+                                                       projectId, owner, projectName);
                         }
 
                         break;
@@ -440,7 +443,8 @@ public class ProjectService {
                         // 1) verifica che il file esista
                         oldFile = mongoFileRepository.findByOwnerAndProjectNameAndPath(owner, projectName, path)
                                 .orElseThrow(() -> new RuntimeException("File " + path + " not found"));
-//                        id = oldFile.getId();
+
+                        file.setId(oldFile.getId()); // set the id to the new file
 
 
                         // 2) prendi il vecchio contenuto
@@ -541,12 +545,13 @@ public class ProjectService {
                         } else if (path.equals("pom.xml")) {
                             // Handle pom.xml dependencies update
                             String newContent = file.getContent();
+
+                            String newPackageName = extractPackageFromPomXml(newContent);
                             List<String> newDependencies = extractDependenciesFromPomXml(newContent);
                             
-                            // Add new dependencies from updated pom.xml
-                            for (String dependency : newDependencies) {
-                                neo4jDAO.relateProjectDependencyByPackageName(projectId, dependency);
-                            }
+                            // Update dependencies with proper package name handling
+                            neo4jDAO.updateDependencies(projectId, newPackageName, newDependencies, 
+                                                       projectId, owner, projectName);
                         }
 
                         filesModified++;
@@ -573,11 +578,9 @@ public class ProjectService {
                             }
                         } else if (path.equals("pom.xml")) {
                             // Handle pom.xml dependencies removal
-                            // updateDepencencies previousPackageName, packageName, newDependencies
-
-//                            String previousPackageName = neo4jDAO.getProjectPackageNameById(projectId);
-//
-//                            neo4jDAO.updateDepencencies(previousPackageName, null, Collections.emptyList());
+                            // Clear all dependencies when pom.xml is deleted
+                            neo4jDAO.updateDependencies(projectId, null, Collections.emptyList(), 
+                                                       projectId, owner, projectName);
                         }
 
                         // 4) elimino il file da Mongo e aggiorno i contatori
@@ -585,6 +588,8 @@ public class ProjectService {
                         mongoFileRepository.deleteById(id);
                         linesDeleted += removedLines;
                         filesModified++;
+
+                        // TODO rimuovere il file dalla lista dei file del progetto
                         break;
 
                     default:
