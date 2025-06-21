@@ -573,7 +573,11 @@ public class ProjectService {
                             }
                         } else if (path.equals("pom.xml")) {
                             // Handle pom.xml dependencies removal
-                            // neo4jDAO.removeProjectDependenciesByPackageName(projectId);
+                            // updateDepencencies previousPackageName, packageName, newDependencies
+                            
+                            String previousPackageName = neo4jDAO.getProjectPackageNameById(projectId);
+
+                            neo4jDAO.updateDepencencies(previousPackageName, null, Collections.emptyList());
                         }
 
                         // 4) elimino il file da Mongo e aggiorno i contatori
